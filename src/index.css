@@ -84,16 +84,25 @@ body {
   border-radius: 12px;
 }
 
+/* Fixed Sidebar Styles */
+.ant-layout-sider {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  z-index: 1000 !important;
+  overflow-y: auto !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .ant-layout-sider {
-    position: fixed !important;
-    height: 100vh;
-    z-index: 1000;
+    display: none !important;
   }
   
   .ant-layout-content {
-    margin-left: 0 !important;
+    margin: 16px !important;
+    padding: 16px !important;
   }
   
   .ant-card {
@@ -107,16 +116,28 @@ body {
   .ant-statistic-content {
     font-size: 18px;
   }
+  
+  .ant-typography {
+    font-size: 14px !important;
+  }
+  
+  .ant-btn {
+    font-size: 12px;
+  }
+  
+  .ant-space {
+    gap: 8px !important;
+  }
 }
 
 @media (max-width: 576px) {
   .ant-layout-header {
-    padding: 0 16px;
+    padding: 0 16px !important;
   }
   
   .ant-layout-content {
-    margin: 16px !important;
-    padding: 16px !important;
+    margin: 8px !important;
+    padding: 12px !important;
   }
   
   .ant-card-head-title {
@@ -125,6 +146,19 @@ body {
   
   .ant-table {
     font-size: 12px;
+  }
+  
+  .ant-typography h2 {
+    font-size: 18px !important;
+  }
+  
+  .ant-typography h3 {
+    font-size: 16px !important;
+  }
+  
+  .ant-btn {
+    padding: 4px 8px;
+    font-size: 11px;
   }
 }
 

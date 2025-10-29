@@ -16,19 +16,19 @@ import SensorCharts from '../Charts/SensorCharts';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const { deviceData, deviceStatus, isLoading, error } = useSelector(selectApp);
+  const { deviceData, deviceStatus, isLoading, error, settings } = useSelector(selectApp);
 
   useEffect(() => {
     // Fetch initial data
     dispatch(fetchDeviceStatus());
 
-    // Set up polling
+    // Set up polling with configurable interval
     const interval = setInterval(() => {
       dispatch(fetchDeviceStatus());
-    }, 5000);
+    }, settings.updateInterval || 5000);
 
     return () => clearInterval(interval);
-  }, [dispatch]);
+  }, [dispatch, settings.updateInterval]);
 
   const getSystemHealthColor = () => {
     if (!deviceData) return 'error';

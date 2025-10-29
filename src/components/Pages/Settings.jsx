@@ -88,6 +88,7 @@ const Settings = () => {
                   { required: true, message: 'Please enter update interval' },
                   { type: 'number', min: 1000, message: 'Minimum interval is 1000ms' }
                 ]}
+                extra="How often the dashboard fetches new sensor data from ESP32 (1000ms = 1 second)"
               >
                 <InputNumber
                   style={{ width: '100%' }}

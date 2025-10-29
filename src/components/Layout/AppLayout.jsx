@@ -1,12 +1,14 @@
-import React from 'react';
-import { Layout, Menu, Typography, Button, Space, Badge } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Menu, Typography, Button, Space, Badge, Drawer } from 'antd';
 import {
   DashboardOutlined,
   ControlOutlined,
   DatabaseOutlined,
   SettingOutlined,
   WifiOutlined,
-  DisconnectOutlined
+  DisconnectOutlined,
+  MenuOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectApp } from '../../store';
@@ -18,6 +20,23 @@ const { Title } = Typography;
 const AppLayout = ({ children }) => {
   const dispatch = useDispatch();
   const { currentPage, deviceStatus, notifications } = useSelector(selectApp);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileDrawerVisible, setMobileDrawerVisible] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setMobileDrawerVisible(false);
+      }
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   const menuItems = [
     {
@@ -44,45 +63,98 @@ const AppLayout = ({ children }) => {
 
   const handleMenuClick = ({ key }) => {
     dispatch({ type: 'app/setCurrentPage', payload: key });
+    // Close mobile drawer after selection
+    if (isMobile) {
+      setMobileDrawerVisible(false);
+    }
   };
 
   const handleReconnect = () => {
     dispatch(testConnection());
   };
 
+  const toggleCollapsed = () => {
+    setCollapsed(!collapsed);
+  };
+
+  const showMobileDrawer = () => {
+    setMobileDrawerVisible(true);
+  };
+
+  const hideMobileDrawer = () => {
+    setMobileDrawerVisible(false);
+  };
+
+  // Sidebar content component
+  const SidebarContent = () => (
+    <>
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        {collapsed ? (
+          <div style={{ fontSize: '32px', color: 'white' }}>
+            🐠
+          </div>
+        ) : (
+          <>
+            <Title level={3} style={{ color: 'white', margin: 0 }}>
+              🐠 Smart Breeder
+            </Title>
+            
+          </>
+        )}
+      </div>
+
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[currentPage]}
+        items={menuItems}
+        onClick={handleMenuClick}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          marginTop: '20px'
+        }}
+      />
+    </>
+  );
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        width={250}
-        style={{
-          background: 'linear-gradient(180deg, #00bcd4 0%, #0097a7 100%)',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.1)'
-        }}
-      >
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <Title level={3} style={{ color: 'white', margin: 0 }}>
-            🐠 Smart Breeder
-          </Title>
-          <Title level={5} style={{ color: 'rgba(255,255,255,0.8)', margin: '5px 0 0 0' }}>
-            Control Panel
-          </Title>
-        </div>
-        
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[currentPage]}
-          items={menuItems}
-          onClick={handleMenuClick}
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <Sider
+          collapsible
+          collapsed={collapsed}
+          onCollapse={toggleCollapsed}
+          width={250}
+          collapsedWidth={80}
           style={{
-            background: 'transparent',
-            border: 'none',
-            marginTop: '20px'
+            background: 'linear-gradient(180deg, #00bcd4 0%, #0097a7 100%)',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 1000,
+            overflow: 'auto'
           }}
-        />
-      </Sider>
+          trigger={
+            <div style={{
+              color: 'white',
+              fontSize: '16px',
+              padding: '10px',
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}>
+              {collapsed ? '→' : '←'}
+            </div>
+          }
+        >
+          <SidebarContent />
+        </Sider>
+      )}
 
-      <Layout>
+      <Layout style={{ marginLeft: !isMobile ? (collapsed ? 80 : 250) : 0 }}>
         <Header
           style={{
             background: 'white',
@@ -93,10 +165,22 @@ const AppLayout = ({ children }) => {
             alignItems: 'center'
           }}
         >
-          <Title level={2} style={{ margin: 0, color: '#00bcd4' }}>
-            Smart Breeder Dashboard
-          </Title>
-          
+          <Space>
+            {/* Mobile Menu Button */}
+            {isMobile && (
+              <Button
+                type="text"
+                icon={<MenuOutlined />}
+                onClick={showMobileDrawer}
+                style={{ fontSize: '18px' }}
+              />
+            )}
+
+            <Title level={2} style={{ margin: 0, color: '#00bcd4' }}>
+              Smart Breeder Dashboard
+            </Title>
+          </Space>
+
           <Space size="middle">
             <Badge
               status={deviceStatus.connected ? 'success' : 'error'}
@@ -107,7 +191,7 @@ const AppLayout = ({ children }) => {
                 </Space>
               }
             />
-            
+
             <Button
               type="primary"
               icon={<WifiOutlined />}
@@ -119,7 +203,7 @@ const AppLayout = ({ children }) => {
             >
               Reconnect ESP32
             </Button>
-            
+
             {notifications.length > 0 && (
               <Badge count={notifications.length} size="small">
                 <Button type="text">Notifications</Button>
@@ -130,16 +214,37 @@ const AppLayout = ({ children }) => {
 
         <Content
           style={{
-            margin: '24px',
-            padding: '24px',
+            margin: isMobile ? '16px' : '24px',
+            padding: isMobile ? '16px' : '24px',
             background: '#f5f5f5',
             borderRadius: '8px',
-            minHeight: 'calc(100vh - 112px)'
+            minHeight: isMobile ? 'calc(100vh - 80px)' : 'calc(100vh - 112px)'
           }}
         >
           {children}
         </Content>
       </Layout>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        placement="left"
+        onClose={hideMobileDrawer}
+        open={mobileDrawerVisible}
+        width={280}
+        styles={{
+          body: {
+            background: 'linear-gradient(180deg, #00bcd4 0%, #0097a7 100%)',
+            padding: 0
+          },
+          header: {
+            background: 'linear-gradient(180deg, #00bcd4 0%, #0097a7 100%)',
+            borderBottom: 'none'
+          }
+        }}
+        closeIcon={<CloseOutlined style={{ color: 'white' }} />}
+      >
+        <SidebarContent />
+      </Drawer>
     </Layout>
   );
 };
