@@ -1,1 +1,256 @@
 @import "tailwindcss";
+
+/* Custom Aqua Blue Theme */
+:root {
+  --aqua-primary: #00bcd4;
+  --aqua-secondary: #0097a7;
+  --aqua-light: #e0f2fe;
+  --aqua-dark: #006064;
+}
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f5f5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Custom Ant Design Theme Overrides */
+.ant-layout-sider {
+  background: linear-gradient(180deg, var(--aqua-primary) 0%, var(--aqua-secondary) 100%) !important;
+}
+
+.ant-menu-dark {
+  background: transparent !important;
+}
+
+.ant-menu-dark .ant-menu-item-selected {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px;
+  margin: 4px 8px;
+}
+
+.ant-menu-dark .ant-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 6px;
+  margin: 4px 8px;
+}
+
+/* Card Hover Effects */
+.ant-card {
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 188, 212, 0.15);
+}
+
+/* Custom Button Styles */
+.ant-btn-primary {
+  background: var(--aqua-primary);
+  border-color: var(--aqua-primary);
+}
+
+.ant-btn-primary:hover {
+  background: var(--aqua-secondary);
+  border-color: var(--aqua-secondary);
+}
+
+/* Custom Switch Styles */
+.ant-switch-checked {
+  background-color: var(--aqua-primary);
+}
+
+/* Custom Progress Styles */
+.ant-progress-bg {
+  background: var(--aqua-primary);
+}
+
+/* Custom Tag Styles */
+.ant-tag {
+  border-radius: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ant-layout-sider {
+    position: fixed !important;
+    height: 100vh;
+    z-index: 1000;
+  }
+  
+  .ant-layout-content {
+    margin-left: 0 !important;
+  }
+  
+  .ant-card {
+    margin-bottom: 16px;
+  }
+  
+  .ant-statistic-title {
+    font-size: 12px;
+  }
+  
+  .ant-statistic-content {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 576px) {
+  .ant-layout-header {
+    padding: 0 16px;
+  }
+  
+  .ant-layout-content {
+    margin: 16px !important;
+    padding: 16px !important;
+  }
+  
+  .ant-card-head-title {
+    font-size: 14px;
+  }
+  
+  .ant-table {
+    font-size: 12px;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--aqua-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--aqua-secondary);
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.loading-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Custom Gradient Backgrounds */
+.gradient-aqua {
+  background: linear-gradient(135deg, var(--aqua-primary) 0%, var(--aqua-secondary) 100%);
+}
+
+.gradient-light {
+  background: linear-gradient(135deg, var(--aqua-light) 0%, #f0f9ff 100%);
+}
+
+/* Status Indicators */
+.status-healthy {
+  color: #52c41a;
+}
+
+.status-warning {
+  color: #faad14;
+}
+
+.status-error {
+  color: #ff4d4f;
+}
+
+/* Custom Timeline Styles */
+.ant-timeline-item-content {
+  margin-left: 20px;
+}
+
+/* Custom Form Styles */
+.ant-form-item-label > label {
+  font-weight: 500;
+}
+
+/* Custom Table Styles */
+.ant-table-thead > tr > th {
+  background: var(--aqua-light);
+  font-weight: 600;
+}
+
+/* Custom Alert Styles */
+.ant-alert {
+  border-radius: 8px;
+}
+
+/* Custom Divider Styles */
+.ant-divider {
+  border-color: rgba(0, 188, 212, 0.2);
+}
+
+/* Custom Badge Styles */
+.ant-badge-count {
+  background: var(--aqua-primary);
+}
+
+/* Custom Menu Styles */
+.ant-menu-item-icon {
+  margin-right: 8px;
+}
+
+/* Custom Typography */
+.ant-typography {
+  color: #262626;
+}
+
+/* Custom Space Styles */
+.ant-space-item {
+  display: flex;
+  align-items: center;
+}
+
+/* Custom Row/Col Responsive */
+@media (max-width: 1200px) {
+  .ant-col-xl-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media (max-width: 992px) {
+  .ant-col-lg-8 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .ant-col-md-12 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
