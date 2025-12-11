@@ -16,7 +16,7 @@ import SensorCharts from '../Charts/SensorCharts';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const { deviceData, deviceStatus, isLoading, error, settings } = useSelector(selectApp);
+  const { deviceData, deviceStatus, isLoading, error, settings, selectedSpecies } = useSelector(selectApp);
 
   useEffect(() => {
     // Fetch initial data
@@ -34,7 +34,6 @@ const Dashboard = () => {
     if (!deviceData) return 'error';
 
     const { ph, temperature } = deviceData;
-    const selectedSpecies = useSelector(selectApp).selectedSpecies;
 
     if (selectedSpecies) {
       const phInRange = ph >= selectedSpecies.idealPhMin && ph <= selectedSpecies.idealPhMax;

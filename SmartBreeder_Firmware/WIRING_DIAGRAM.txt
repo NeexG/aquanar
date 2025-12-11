@@ -1,0 +1,138 @@
+================================================================================
+                    SMART BREEDER - WIRING DIAGRAM
+================================================================================
+
+ESP32 DEV MODULE PINOUT
+-----------------------
+
+                    [ESP32 Dev Module]
+                          
+    [3.3V] ──────────────────────────────────────┐
+    [GND]  ──────────────────────────────────────┤
+    [GPIO21] ────────────────────────────────────┤
+    [GPIO22] ────────────────────────────────────┤
+    [GPIO27] ────────────────────────────────────┤
+    [GPIO35] ────────────────────────────────────┤
+    [GPIO18] ────────────────────────────────────┤
+    [GPIO23] ────────────────────────────────────┤
+    [GPIO19] ────────────────────────────────────┤
+
+
+1. LCD I2C MODULE (16x2)
+   ─────────────────────
+   
+   ESP32 GPIO21 (SDA) ────[4.7kΩ]─── LCD SDA
+   ESP32 GPIO22 (SCL) ────[4.7kΩ]─── LCD SCL
+   ESP32 5V ──────────────────────── LCD VCC
+   ESP32 GND ─────────────────────── LCD GND
+   
+   Note: Some LCD modules work with 3.3V, check your module specs.
+
+
+2. DS18B20 TEMPERATURE SENSOR
+   ───────────────────────────
+   
+   ESP32 GPIO27 ──────────────────── DS18B20 Data
+   ESP32 3.3V ────[4.7kΩ]─────────── DS18B20 Data (pull-up)
+   ESP32 3.3V ────────────────────── DS18B20 VCC
+   ESP32 GND ─────────────────────── DS18B20 GND
+   
+   Pull-up resistor: 4.7kΩ between Data and 3.3V
+
+
+3. pH SENSOR (Analog)
+   ───────────────────
+   
+   ESP32 GPIO35 (ADC1_CH7) ───────── pH Sensor Signal
+   ESP32 3.3V ────────────────────── pH Sensor VCC
+   ESP32 GND ─────────────────────── pH Sensor GND
+   
+   Note: GPIO35 is input-only, no pull-up needed
+
+
+4. RELAY MODULE (Active-Low)
+   ─────────────────────────
+   
+   ESP32 GPIO18 ──────────────────── Relay 1 IN (Fan)
+   ESP32 GPIO23 ──────────────────── Relay 2 IN (Acid Pump)
+   ESP32 GPIO19 ──────────────────── Relay 3 IN (Base Pump)
+   ESP32 GND ──────────────────────── Relay Module GND
+   ESP32 5V (or external 5V) ──────── Relay Module VCC
+   
+   Relay Module Output:
+   - Relay 1 COM/NO/NC ──────────── Fan Power
+   - Relay 2 COM/NO/NC ──────────── Acid Pump Power
+   - Relay 3 COM/NO/NC ──────────── Base Pump Power
+   
+   Note: Active-Low means LOW signal = Relay ON
+
+
+POWER SUPPLY
+────────────
+
+Option 1: USB Power (Development)
+   USB Cable ────────────────────── ESP32 USB Port
+   (5V, 500mA minimum)
+
+Option 2: External Power (Production)
+   External 5V/3A Supply ────────── ESP32 VIN
+   Common GND ────────────────────── ESP32 GND
+   
+   Note: Ensure stable power supply for reliable operation
+
+
+COMPLETE CONNECTION TABLE
+──────────────────────────
+
+Component          ESP32 Pin    Notes
+─────────          ─────────    ─────
+LCD SDA            GPIO 21      I2C Data
+LCD SCL            GPIO 22     I2C Clock
+LCD VCC            5V/3.3V      Check module
+LCD GND            GND          Common ground
+
+DS18B20 Data       GPIO 27      With 4.7kΩ pull-up
+DS18B20 VCC        3.3V         Power
+DS18B20 GND        GND           Ground
+
+pH Sensor Signal   GPIO 35       ADC input
+pH Sensor VCC      3.3V          Power
+pH Sensor GND      GND           Ground
+
+Fan Relay IN       GPIO 18       Active-Low
+Acid Pump Relay    GPIO 23       Active-Low
+Base Pump Relay    GPIO 19       Active-Low
+Relay Module GND   GND           Common ground
+Relay Module VCC   5V            Or external supply
+
+
+SAFETY NOTES
+────────────
+
+1. Always use common ground for all components
+2. Check relay module voltage requirements (5V or 3.3V)
+3. Use appropriate power supply for relay module
+4. Ensure proper isolation for high-voltage relay outputs
+5. Test all connections before powering on
+6. Use fuses/circuit breakers for pump power lines
+
+
+TESTING CHECKLIST
+─────────────────
+
+□ LCD displays startup message
+□ Temperature sensor reads correctly
+□ pH sensor reads correctly (calibrate first)
+□ Fan relay toggles correctly
+□ Acid pump relay toggles correctly
+□ Base pump relay toggles correctly
+□ WiFi connects and dashboard accessible
+□ All sensors update in dashboard
+□ Manual control works from dashboard
+□ Auto-control activates with fish profile
+
+
+================================================================================
+                    END OF WIRING DIAGRAM
+================================================================================
+

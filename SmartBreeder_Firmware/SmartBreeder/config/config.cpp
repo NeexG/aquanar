@@ -1,0 +1,70 @@
+#include "config.h"
+
+Preferences preferences;
+FishType activeFishType = FISH_NONE;
+
+// Convert logical ON to physical pin level
+int getRelayLevel(bool logicalOn) {
+  return (RELAY_ACTIVE_HIGH ? (logicalOn ? HIGH : LOW) : (logicalOn ? LOW : HIGH));
+}
+
+// Load calibration from EEPROM
+void loadCalibration() {
+  preferences.begin(PREF_NAMESPACE, true); // Read-only mode
+  
+  float ph7Voltage = preferences.getFloat(PREF_PH7_KEY, 2.50);
+  float ph4Voltage = preferences.getFloat(PREF_PH4_KEY, 1.50);
+  float tempOffset = preferences.getFloat(PREF_TEMP_OFFSET_KEY, 0.0);
+  
+  preferences.end();
+  
+  Serial.println("=== Calibration Loaded ===");
+  Serial.printf("pH 7.00 voltage: %.3fV\n", ph7Voltage);
+  Serial.printf("pH 4.00 voltage: %.3fV\n", ph4Voltage);
+  Serial.printf("Temp offset: %.2f°C\n", tempOffset);
+}
+
+// Save calibration to EEPROM
+void saveCalibration() {
+  preferences.begin(PREF_NAMESPACE, false); // Read-write mode
+  
+  // Calibration values are set by sensor classes
+  // This function is called after calibration
+  
+  preferences.end();
+  Serial.println("Calibration saved to EEPROM");
+}
+
+// Save pH calibration values
+void savePHCalibration(float ph7Voltage, float ph4Voltage) {
+  preferences.begin(PREF_NAMESPACE, false);
+  preferences.putFloat(PREF_PH7_KEY, ph7Voltage);
+  preferences.putFloat(PREF_PH4_KEY, ph4Voltage);
+  preferences.end();
+  Serial.printf("pH calibration saved: 7.00=%.3fV, 4.00=%.3fV\n", ph7Voltage, ph4Voltage);
+}
+
+// Save temperature offset
+void saveTempOffset(float offset) {
+  preferences.begin(PREF_NAMESPACE, false);
+  preferences.putFloat(PREF_TEMP_OFFSET_KEY, offset);
+  preferences.end();
+  Serial.printf("Temperature offset saved: %.2f°C\n", offset);
+}
+
+// Load fish type
+void loadFishType() {
+  preferences.begin(PREF_NAMESPACE, true);
+  activeFishType = (FishType)preferences.getUChar(PREF_FISH_TYPE_KEY, FISH_NONE);
+  preferences.end();
+  Serial.printf("Fish type loaded: %s\n", FISH_PROFILES[activeFishType].name.c_str());
+}
+
+// Save fish type
+void saveFishType() {
+  preferences.begin(PREF_NAMESPACE, false);
+  preferences.putUChar(PREF_FISH_TYPE_KEY, activeFishType);
+  preferences.end();
+  Serial.printf("Fish type saved: %s\n", FISH_PROFILES[activeFishType].name.c_str());
+}
+

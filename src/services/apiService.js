@@ -1,21 +1,40 @@
 import axios from 'axios';
 import { DEVICE_CONSTANTS } from '../constants';
 
+// Determine if we're in production (Vercel) or development
+const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost';
+
 // Create axios instance with base configuration
+// In production (Vercel), use the proxy endpoint to avoid mixed content errors
+// In development, connect directly to ESP32
 const api = axios.create({
-  baseURL: 'http://192.168.1.100', // Default ESP32 IP - should be configurable
-  timeout: 5000,
+  baseURL: isProduction 
+    ? '/api/proxy'  // Use Vercel proxy in production (HTTPS -> HTTP)
+    : 'http://192.168.0.111', // Direct connection in development
+  timeout: 15000, // Increased timeout for proxy + ESP32
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+// Helper to get the correct endpoint path
+// In production (proxy), we use the path without /api prefix (proxy adds it)
+// In development (direct), we use the full path with /api prefix
+const getEndpoint = (endpoint) => {
+  if (isProduction) {
+    // Remove /api prefix for proxy (proxy adds it back)
+    return endpoint.replace('/api/', '');
+  }
+  return endpoint;
+};
 
 // API service for ESP32 communication
 export const apiService = {
   // Get device status and sensor data
   async getDeviceStatus() {
     try {
-      const response = await api.get(DEVICE_CONSTANTS.API_ENDPOINTS.STATUS);
+      const endpoint = getEndpoint(DEVICE_CONSTANTS.API_ENDPOINTS.STATUS);
+      const response = await api.get(endpoint);
       return {
         success: true,
         data: response.data,
@@ -26,7 +45,7 @@ export const apiService = {
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to connect to device'
+        message: error.response?.data?.message || error.response?.data?.error || 'Failed to connect to device'
       };
     }
   },
@@ -34,7 +53,8 @@ export const apiService = {
   // Send control commands to device
   async sendControlCommand(controlData) {
     try {
-      const response = await api.post(DEVICE_CONSTANTS.API_ENDPOINTS.CONTROL, controlData);
+      const endpoint = getEndpoint(DEVICE_CONSTANTS.API_ENDPOINTS.CONTROL);
+      const response = await api.post(endpoint, controlData);
       return {
         success: true,
         data: response.data,
@@ -45,7 +65,7 @@ export const apiService = {
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to send control command'
+        message: error.response?.data?.message || error.response?.data?.error || 'Failed to send control command'
       };
     }
   },
@@ -53,7 +73,8 @@ export const apiService = {
   // Send fish species configuration
   async sendSpeciesConfig(speciesData) {
     try {
-      const response = await api.post(DEVICE_CONSTANTS.API_ENDPOINTS.SPECIES, speciesData);
+      const endpoint = getEndpoint(DEVICE_CONSTANTS.API_ENDPOINTS.SPECIES);
+      const response = await api.post(endpoint, speciesData);
       return {
         success: true,
         data: response.data,
@@ -64,7 +85,7 @@ export const apiService = {
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to send species configuration'
+        message: error.response?.data?.message || error.response?.data?.error || 'Failed to send species configuration'
       };
     }
   },
@@ -72,7 +93,8 @@ export const apiService = {
   // Send Wi-Fi configuration
   async sendWiFiConfig(wifiData) {
     try {
-      const response = await api.post(DEVICE_CONSTANTS.API_ENDPOINTS.WIFI, wifiData);
+      const endpoint = getEndpoint(DEVICE_CONSTANTS.API_ENDPOINTS.WIFI);
+      const response = await api.post(endpoint, wifiData);
       return {
         success: true,
         data: response.data,
@@ -83,20 +105,25 @@ export const apiService = {
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to send Wi-Fi configuration'
+        message: error.response?.data?.message || error.response?.data?.error || 'Failed to send Wi-Fi configuration'
       };
     }
   },
 
-  // Update base URL for different ESP32 IP
+  // Update base URL for different ESP32 IP (only works in development)
   updateBaseURL(newIP) {
-    api.defaults.baseURL = `http://${newIP}`;
+    if (!isProduction) {
+      api.defaults.baseURL = `http://${newIP}`;
+    } else {
+      console.warn('Cannot update ESP32 IP in production. Set ESP32_IP environment variable in Vercel.');
+    }
   },
 
   // Test connection to ESP32
   async testConnection() {
     try {
-      const response = await api.get('/api/ping');
+      const endpoint = isProduction ? 'ping' : '/api/ping';
+      const response = await api.get(endpoint);
       return {
         success: true,
         message: 'Connection successful'
@@ -104,7 +131,7 @@ export const apiService = {
     } catch (error) {
       return {
         success: false,
-        message: 'Connection failed'
+        message: error.response?.data?.message || error.response?.data?.error || 'Connection failed'
       };
     }
   }
