@@ -15,6 +15,19 @@ SmartBreederServer::SmartBreederServer(PHSensor* ph, TempSensor* temp, FanContro
 
 void SmartBreederServer::begin() {
   WiFi.mode(WIFI_STA);
+  
+  // Configure static IP address (prevents IP from changing)
+  Serial.println("Configuring static IP...");
+  Serial.printf("Static IP: %s\n", staticIP.toString().c_str());
+  Serial.printf("Gateway: %s\n", gateway.toString().c_str());
+  Serial.printf("Subnet: %s\n", subnet.toString().c_str());
+  
+  if (!WiFi.config(staticIP, gateway, subnet, dns)) {
+    Serial.println("WARNING: Static IP configuration failed! Using DHCP instead.");
+  } else {
+    Serial.println("Static IP configured successfully!");
+  }
+  
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   
   Serial.print("Connecting to WiFi");
@@ -29,6 +42,16 @@ void SmartBreederServer::begin() {
     Serial.println("\nWiFi Connected!");
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
+    
+    // Verify static IP was applied
+    if (WiFi.localIP() == staticIP) {
+      Serial.println("✓ Static IP is active!");
+    } else {
+      Serial.printf("⚠ WARNING: Expected IP %s but got %s\n", 
+                    staticIP.toString().c_str(), 
+                    WiFi.localIP().toString().c_str());
+      Serial.println("  Check if IP is already in use or router doesn't allow static IPs");
+    }
     
     if (MDNS.begin("smartbreeder")) {
       Serial.println("mDNS started: http://smartbreeder.local");

@@ -135,6 +135,7 @@ void loop() {
     phControl.getAcidState(),
     phControl.getBaseState(),
     phControl.getCooldownRemaining(),
+    wifiServer.isConnected(),
     wifiServer.getIP()
   );
   

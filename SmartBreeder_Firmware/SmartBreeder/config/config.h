@@ -24,6 +24,18 @@
 const char* WIFI_SSID = "Abu Hosain";
 const char* WIFI_PASS = "01731373179";
 
+// Static IP Configuration (set to fixed IP to prevent IP changes)
+// IMPORTANT: Make sure this IP is not used by another device on your network
+// Change these values to match your network:
+// - Static IP: The fixed IP you want for ESP32 (e.g., 192.168.0.111)
+// - Gateway: Your router's IP (usually 192.168.0.1 or 192.168.1.1)
+// - Subnet: Usually 255.255.255.0
+// - DNS: Your router IP or 8.8.8.8 (Google DNS)
+IPAddress staticIP(192, 168, 0, 111);      // Fixed IP for ESP32
+IPAddress gateway(192, 168, 0, 1);          // Router IP (change if different)
+IPAddress subnet(255, 255, 255, 0);       // Subnet mask
+IPAddress dns(192, 168, 0, 1);            // DNS server (usually router IP)
+
 // ======================= RELAY CONFIG =======================
 const bool RELAY_ACTIVE_HIGH = false; // Active-Low relays
 

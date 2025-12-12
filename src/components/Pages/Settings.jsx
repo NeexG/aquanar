@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, InputNumber, Switch, Button, Space, message, notification, Divider, Row, Col } from 'antd';
-import { SettingOutlined, WifiOutlined, ClockCircleOutlined, BulbOutlined } from '@ant-design/icons';
+import { SettingOutlined, WifiOutlined, ClockCircleOutlined, BulbOutlined, ApiOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateSettings, sendWiFiConfig } from '../../store/appSlice';
 import { selectApp } from '../../store';
+import apiService from '../../services/apiService';
 
 const Settings = () => {
   const dispatch = useDispatch();
   const { settings, isLoading } = useSelector(selectApp);
   const [form] = Form.useForm();
   const [wifiForm] = Form.useForm();
+  const [ipForm] = Form.useForm();
+  const [currentIP, setCurrentIP] = useState(apiService.getESP32IP() || '192.168.0.111'); // Default matches ESP32 static IP
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  useEffect(() => {
+    setCurrentIP(apiService.getESP32IP() || '192.168.0.111');
+    ipForm.setFieldsValue({ esp32IP: currentIP });
+  }, []);
 
   const handleSettingsSave = (values) => {
     dispatch(updateSettings(values));
@@ -32,20 +41,23 @@ const Settings = () => {
 
         dispatch(updateSettings({ wifi: values }));
       } else {
-        message.error('Failed to send Wi-Fi configuration');
+        // Get error message from the rejected action
+        const errorMessage = result.payload || result.error?.message || 'Failed to send Wi-Fi configuration';
+        message.error(errorMessage);
         notification.error({
           message: 'Wi-Fi Configuration Failed',
-          description: 'Failed to send Wi-Fi settings to device',
-          duration: 5,
+          description: errorMessage,
+          duration: 6,
           placement: 'topRight',
         });
       }
     } catch (error) {
-      message.error('Error sending Wi-Fi configuration');
+      const errorMessage = error.message || 'Error sending Wi-Fi configuration';
+      message.error(errorMessage);
       notification.error({
         message: 'Wi-Fi Configuration Error',
-        description: 'Error sending Wi-Fi settings to device',
-        duration: 5,
+        description: errorMessage,
+        duration: 6,
         placement: 'topRight',
       });
     }
@@ -55,6 +67,51 @@ const Settings = () => {
     form.resetFields();
     wifiForm.resetFields();
     message.info('Settings reset to defaults');
+  };
+
+  const handleIPUpdate = async (values) => {
+    const newIP = values.esp32IP.trim();
+    
+    // Basic IP validation
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(newIP)) {
+      message.error('Invalid IP address format');
+      return;
+    }
+
+    try {
+      apiService.updateBaseURL(newIP);
+      setCurrentIP(newIP);
+      message.success(`ESP32 IP updated to ${newIP}`);
+    } catch (error) {
+      message.error('Failed to update IP address');
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    try {
+      const result = await apiService.testConnection();
+      if (result.success) {
+        message.success(result.message);
+        notification.success({
+          message: 'Connection Successful',
+          description: result.message,
+          duration: 3,
+        });
+      } else {
+        message.error(result.message);
+        notification.error({
+          message: 'Connection Failed',
+          description: result.message,
+          duration: 5,
+        });
+      }
+    } catch (error) {
+      message.error('Error testing connection');
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   return (
@@ -119,6 +176,48 @@ const Settings = () => {
                   </Button>
                   <Button onClick={handleResetSettings}>
                     Reset to Defaults
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Card>
+        </Col>
+
+        {/* ESP32 Connection Settings */}
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <ApiOutlined style={{ color: '#00bcd4' }} />
+                ESP32 Connection
+              </Space>
+            }
+          >
+            <Form
+              form={ipForm}
+              layout="vertical"
+              initialValues={{ esp32IP: currentIP }}
+              onFinish={handleIPUpdate}
+            >
+              <Form.Item
+                label="ESP32 IP Address"
+                name="esp32IP"
+                rules={[
+                  { required: true, message: 'Please enter ESP32 IP address' },
+                  { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: 'Invalid IP address format' }
+                ]}
+                extra="Enter the IP address of your ESP32 device (check Serial Monitor for IP)"
+              >
+                <Input placeholder="192.168.0.111" />
+              </Form.Item>
+
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit">
+                    Update IP
+                  </Button>
+                  <Button onClick={handleTestConnection} loading={testingConnection}>
+                    Test Connection
                   </Button>
                 </Space>
               </Form.Item>
