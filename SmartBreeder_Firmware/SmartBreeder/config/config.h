@@ -10,10 +10,19 @@
 #define SDA_PIN 21          // I2C SDA for LCD
 #define SCL_PIN 22          // I2C SCL for LCD
 
-// Relay pins (Active-Low)
-#define REL_FAN 18          // Cooler fan relay
-#define REL_ACID_PUMP 23    // Acid pump relay
-#define REL_BASE_PUMP 19    // Base pump relay
+// Relay pins (Active-Low) - Updated pin mapping
+const uint8_t REL_ACID_PUMP   = 16; // Acid pump relay - G16
+const uint8_t REL_ALKALI_PUMP = 17; // Alkali pump relay - G17
+const uint8_t REL_COOLER_FAN  = 18; // Cooler fan relay - G18
+const uint8_t REL_WATER_HEATER= 19; // Water heater relay - G19
+const uint8_t REL_AIR_PUMP    = 26; // Air pump relay - G26
+const uint8_t REL_WATER_FLOW  = 32; // Water flow pump relay - G32
+const uint8_t REL_RAIN_PUMP   = 33; // Rain pump relay - G33
+const uint8_t REL_LIGHT_CTRL  = 25; // Light control relay - G25
+
+// Legacy aliases for backward compatibility
+#define REL_FAN REL_COOLER_FAN
+#define REL_BASE_PUMP REL_ALKALI_PUMP
 
 // LCD Configuration
 #define LCD_ADDRESS 0x27

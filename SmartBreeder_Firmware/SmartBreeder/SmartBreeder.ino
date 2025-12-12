@@ -7,7 +7,15 @@
   - LCD I2C (0x27) on GPIO 21/22
   - pH Sensor on GPIO 35 (ADC)
   - DS18B20 on GPIO 27
-  - Relays (Active-Low) on GPIO 18, 23, 19
+  - Relays (Active-Low):
+    * Acid Pump: GPIO 16
+    * Alkali Pump: GPIO 17
+    * Cooler Fan: GPIO 18
+    * Water Heater: GPIO 19
+    * Air Pump: GPIO 26
+    * Water Flow: GPIO 32
+    * Rain Pump: GPIO 33
+    * Light Control: GPIO 25
 */
 
 // Include headers
