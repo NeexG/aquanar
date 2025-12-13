@@ -252,10 +252,12 @@ void SmartBreederServer::handleAPISpecies() {
     Serial.println("Species config: " + body);
     
     // Parse custom fish profile from dashboard (Fish Species Database)
-    // Format: {"name":"Goldfish","idealPh":{"min":7.0,"max":9.0},"idealTemp":{"min":24,"max":28}}
+    // Format: {"name":"Goldfish","idealPh":{"min":7.0,"max":9.0},"idealTemp":{"min":24,"max":28},"waterFlow":true,"rain":false}
     bool hasCustomProfile = false;
     float customPhMin = 0, customPhMax = 0;
     float customTempMin = 0, customTempMax = 0;
+    bool customWaterFlow = false;
+    bool customRain = false;
     String fishName = "";
     
     // Extract custom pH range
@@ -320,6 +322,34 @@ void SmartBreederServer::handleAPISpecies() {
       }
     }
     
+    // Extract waterFlow
+    if (body.indexOf("\"waterFlow\"") >= 0) {
+      int waterFlowPos = body.indexOf("\"waterFlow\":");
+      if (waterFlowPos >= 0) {
+        int truePos = body.indexOf("true", waterFlowPos);
+        int falsePos = body.indexOf("false", waterFlowPos);
+        if (truePos >= 0 && (falsePos < 0 || truePos < falsePos)) {
+          customWaterFlow = true;
+        } else if (falsePos >= 0) {
+          customWaterFlow = false;
+        }
+      }
+    }
+    
+    // Extract rain
+    if (body.indexOf("\"rain\"") >= 0) {
+      int rainPos = body.indexOf("\"rain\":");
+      if (rainPos >= 0) {
+        int truePos = body.indexOf("true", rainPos);
+        int falsePos = body.indexOf("false", rainPos);
+        if (truePos >= 0 && (falsePos < 0 || truePos < falsePos)) {
+          customRain = true;
+        } else if (falsePos >= 0) {
+          customRain = false;
+        }
+      }
+    }
+    
     // If custom profile provided, save it and update active fish type
     if (hasCustomProfile && customPhMin > 0 && customPhMax > 0) {
       // Save custom profile to preferences
@@ -330,6 +360,8 @@ void SmartBreederServer::handleAPISpecies() {
       prefs.putFloat("custom_temp_min", customTempMin);
       prefs.putFloat("custom_temp_max", customTempMax);
       prefs.putString("custom_fish_name", fishName);
+      prefs.putBool("custom_water_flow", customWaterFlow);
+      prefs.putBool("custom_rain", customRain);
       prefs.putBool("use_custom_profile", true);
       prefs.end();
       
@@ -337,6 +369,8 @@ void SmartBreederServer::handleAPISpecies() {
       Serial.printf("Species Name: %s\n", fishName.c_str());
       Serial.printf("pH Range: %.1f - %.1f\n", customPhMin, customPhMax);
       Serial.printf("Temperature Range: %.1f - %.1f°C\n", customTempMin, customTempMax);
+      Serial.printf("Water Flow: %s\n", customWaterFlow ? "ON" : "OFF");
+      Serial.printf("Rain: %s\n", customRain ? "ON" : "OFF");
       Serial.printf("Custom Profile: ENABLED\n");
       Serial.printf("pH control will use these ranges for automatic correction\n");
       Serial.printf("pH check interval: 1 minute\n");
@@ -480,6 +514,17 @@ void SmartBreederServer::handleAPISpeciesList() {
     json += "\"min\":" + String(profile.tempMin, 1) + ",";
     json += "\"max\":" + String(profile.tempMax, 1);
     json += "},";
+    // Send as JSON boolean (true/false without quotes - JSON boolean values)
+    if (profile.waterFlow) {
+      json += "\"waterFlow\":true,";
+    } else {
+      json += "\"waterFlow\":false,";
+    }
+    if (profile.rain) {
+      json += "\"rain\":true,";
+    } else {
+      json += "\"rain\":false,";
+    }
     json += "\"description\":\"";
     
     // Add descriptions for each fish

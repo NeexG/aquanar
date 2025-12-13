@@ -73,14 +73,38 @@ void saveFishType() {
   preferences.end();
   Serial.printf("Fish type saved: %s\n", FISH_PROFILES[activeFishType].name.c_str());
   
-  // Control air pump based on fish selection
-  // Air pump ON when any fish is selected, OFF when no fish selected
+  // Control relays based on fish selection
   if (activeFishType != FISH_NONE) {
+    // Get fish profile to check relay settings
+    FishProfile profile = getActiveFishProfile();
+    
+    // Air pump ON when any fish is selected
     digitalWrite(REL_AIR_PUMP, getRelayLevel(true)); // ON
     Serial.println("✓ Air pump activated (fish selected)");
+    
+    // Control water flow relay based on fish profile
+    if (profile.waterFlow) {
+      digitalWrite(REL_WATER_FLOW, getRelayLevel(true)); // ON
+      Serial.println("✓ Water flow relay activated");
+    } else {
+      digitalWrite(REL_WATER_FLOW, getRelayLevel(false)); // OFF
+      Serial.println("✓ Water flow relay deactivated");
+    }
+    
+    // Control rain relay based on fish profile
+    if (profile.rain) {
+      digitalWrite(REL_RAIN_PUMP, getRelayLevel(true)); // ON
+      Serial.println("✓ Rain relay activated");
+    } else {
+      digitalWrite(REL_RAIN_PUMP, getRelayLevel(false)); // OFF
+      Serial.println("✓ Rain relay deactivated");
+    }
   } else {
+    // All relays OFF when no fish selected (except light which is always ON)
     digitalWrite(REL_AIR_PUMP, getRelayLevel(false)); // OFF
-    Serial.println("✓ Air pump deactivated (no fish selected)");
+    digitalWrite(REL_WATER_FLOW, getRelayLevel(false)); // OFF
+    digitalWrite(REL_RAIN_PUMP, getRelayLevel(false)); // OFF
+    Serial.println("✓ All relays deactivated (no fish selected)");
   }
 }
 
@@ -97,6 +121,8 @@ FishProfile getActiveFishProfile() {
     custom.tempMin = preferences.getFloat("custom_temp_min", 24.0f);
     custom.tempMax = preferences.getFloat("custom_temp_max", 28.0f);
     custom.name = preferences.getString("custom_fish_name", "Custom");
+    custom.waterFlow = preferences.getBool("custom_water_flow", false);
+    custom.rain = preferences.getBool("custom_rain", false);
     preferences.end();
     return custom;
   } else {

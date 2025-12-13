@@ -21,7 +21,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 8.0,
     idealTempMin: 27.0,
     idealTempMax: 31.0,
-    description: 'Common goldfish, hardy and adaptable species'
+    waterFlow: true,   // Yes
+    rain: false,       // No - Test: Water Flow only
+    description: 'Common goldfish, hardy and adaptable species - Water Flow: ON, Rain: OFF'
   },
   {
     id: '2',
@@ -30,7 +32,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 7.5,
     idealTempMin: 26.5,
     idealTempMax: 30.5,
-    description: 'Siamese fighting fish, tropical species'
+    waterFlow: false,  // No
+    rain: true,        // Yes - Test: Rain only
+    description: 'Siamese fighting fish, tropical species - Water Flow: OFF, Rain: ON'
   },
   {
     id: '3',
@@ -39,7 +43,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 8.5,
     idealTempMin: 25.5,
     idealTempMax: 29.5,
-    description: 'Live-bearing tropical fish, colorful and active'
+    waterFlow: true,   // Yes
+    rain: true,        // Yes - Test: Both ON
+    description: 'Live-bearing tropical fish, colorful and active - Water Flow: ON, Rain: ON'
   },
   {
     id: '4',
@@ -48,7 +54,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 7.0,
     idealTempMin: 25.0,
     idealTempMax: 29.0,
-    description: 'Small schooling fish, prefers acidic water'
+    waterFlow: false,  // No
+    rain: false,       // No - Test: Both OFF
+    description: 'Small schooling fish, prefers acidic water - Water Flow: OFF, Rain: OFF'
   },
   {
     id: '5',
@@ -57,7 +65,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 7.5,
     idealTempMin: 28.0,
     idealTempMax: 32.0,
-    description: 'Large cichlid, requires stable water conditions'
+    waterFlow: true,   // Yes
+    rain: true,        // Yes - Test: Both ON (duplicate for testing)
+    description: 'Large cichlid, requires stable water conditions - Water Flow: ON, Rain: ON'
   },
   {
     id: '6',
@@ -66,7 +76,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 7.2,
     idealTempMin: 26.0,
     idealTempMax: 30.0,
-    description: 'Comet goldfish, single-tailed variety'
+    waterFlow: true,   // Yes
+    rain: false,       // No - Test: Water Flow only (duplicate for testing)
+    description: 'Comet goldfish, single-tailed variety - Water Flow: ON, Rain: OFF'
   },
   {
     id: '7',
@@ -75,7 +87,9 @@ export const DEFAULT_FISH_SPECIES = [
     idealPhMax: 8.0,
     idealTempMin: 27.5,
     idealTempMax: 31.5,
-    description: 'Rohu fish, popular freshwater species'
+    waterFlow: false,  // No
+    rain: true,        // Yes - Test: Rain only (duplicate for testing)
+    description: 'Rohu fish, popular freshwater species - Water Flow: OFF, Rain: ON'
   }
 ];
 

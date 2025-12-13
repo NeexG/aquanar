@@ -41,14 +41,33 @@ void AutoControl::checkTemperature() {
     digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
     // Air pump OFF when no fish selected
     digitalWrite(REL_AIR_PUMP, getRelayLevel(false));
+    // Water flow and rain OFF when no fish selected
+    digitalWrite(REL_WATER_FLOW, getRelayLevel(false));
+    digitalWrite(REL_RAIN_PUMP, getRelayLevel(false));
     return;
   }
+  
+  // Get active fish profile to check water flow and rain settings
+  FishProfile profile = getActiveFishProfile();
   
   // Air pump ON when any fish is selected
   digitalWrite(REL_AIR_PUMP, getRelayLevel(true));
   
+  // Control water flow relay based on fish profile
+  if (profile.waterFlow) {
+    digitalWrite(REL_WATER_FLOW, getRelayLevel(true)); // ON
+  } else {
+    digitalWrite(REL_WATER_FLOW, getRelayLevel(false)); // OFF
+  }
+  
+  // Control rain relay based on fish profile
+  if (profile.rain) {
+    digitalWrite(REL_RAIN_PUMP, getRelayLevel(true)); // ON
+  } else {
+    digitalWrite(REL_RAIN_PUMP, getRelayLevel(false)); // OFF
+  }
+  
   float temp = tempSensor->read();
-  FishProfile profile = getActiveFishProfile();
   bool fanManual = fanControl->isManual();
   
   if (temp > profile.tempMax) {

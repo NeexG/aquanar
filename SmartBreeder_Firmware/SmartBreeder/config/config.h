@@ -90,17 +90,19 @@ struct FishProfile {
   float phMax;
   float tempMin;
   float tempMax;
+  bool waterFlow;  // Water flow relay enabled for this fish
+  bool rain;       // Rain relay enabled for this fish
 };
 
 const FishProfile FISH_PROFILES[] = {
-  {"None", 6.5, 7.5, 26.0, 30.0},           // Temp: 26-30°C (within 25-32)
-  {"Goldfish", 6.5, 8.0, 27.0, 31.0},       // Temp: 27-31°C (within 25-32)
-  {"Betta Fish", 6.5, 7.5, 26.5, 30.5},      // Temp: 26.5-30.5°C (within 25-32)
-  {"Guppy", 7.0, 8.5, 25.5, 29.5},          // Temp: 25.5-29.5°C (within 25-32)
-  {"Neon Tetra", 5.0, 7.0, 25.0, 29.0},      // Temp: 25-29°C (within 25-32)
-  {"Angelfish", 6.0, 7.5, 28.0, 32.0},       // Temp: 28-32°C (within 25-32)
-  {"Comet", 6.5, 7.2, 26.0, 30.0},          // Temp: 26-30°C (within 25-32)
-  {"Rohu", 6.6, 8.0, 27.5, 31.5}            // Temp: 27.5-31.5°C (within 25-32)
+  {"None", 6.5, 7.5, 26.0, 30.0, false, false},           // No water flow, no rain
+  {"Goldfish", 6.5, 8.0, 27.0, 31.0, true, false},        // Water flow: YES, Rain: NO
+  {"Betta Fish", 6.5, 7.5, 26.5, 30.5, false, true},      // Water flow: NO, Rain: YES
+  {"Guppy", 7.0, 8.5, 25.5, 29.5, true, true},            // Water flow: YES, Rain: YES
+  {"Neon Tetra", 5.0, 7.0, 25.0, 29.0, false, false},     // Water flow: NO, Rain: NO
+  {"Angelfish", 6.0, 7.5, 28.0, 32.0, true, true},        // Water flow: YES, Rain: YES
+  {"Comet", 6.5, 7.2, 26.0, 30.0, true, false},           // Water flow: YES, Rain: NO
+  {"Rohu", 6.6, 8.0, 27.5, 31.5, false, true}            // Water flow: NO, Rain: YES
 };
 
 // ======================= GLOBAL STATE =======================

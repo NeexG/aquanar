@@ -5,9 +5,17 @@ import { useSelector, useDispatch } from 'react-redux';
 import { selectApp } from '../../store';
 import { setSelectedSpecies, sendSpeciesConfig, setFishSpecies } from '../../store/appSlice';
 import { apiService } from '../../services/apiService';
+import { DEFAULT_FISH_SPECIES } from '../../constants';
 
 // Helper function to normalize fish species data (handle both nested and flat formats)
 const normalizeSpeciesData = (species) => {
+  // Helper to convert string/boolean to boolean
+  const toBoolean = (value) => {
+    if (value === true || value === 'true' || value === 1 || value === '1') return true;
+    if (value === false || value === 'false' || value === 0 || value === '0') return false;
+    return false; // Default to false
+  };
+  
   // If data comes from API with nested format: idealPh: { min, max }, idealTemp: { min, max }
   if (species.idealPh && typeof species.idealPh === 'object') {
     return {
@@ -15,11 +23,18 @@ const normalizeSpeciesData = (species) => {
       idealPhMin: species.idealPh.min,
       idealPhMax: species.idealPh.max,
       idealTempMin: species.idealTemp.min,
-      idealTempMax: species.idealTemp.max
+      idealTempMax: species.idealTemp.max,
+      waterFlow: toBoolean(species.waterFlow),
+      rain: toBoolean(species.rain)
     };
   }
   // If data is already in flat format: idealPhMin, idealPhMax, etc.
-  return species;
+  // Ensure waterFlow and rain have default values and convert to boolean
+  return {
+    ...species,
+    waterFlow: toBoolean(species.waterFlow),
+    rain: toBoolean(species.rain)
+  };
 };
 
 const FishSpeciesDatabase = () => {
@@ -31,17 +46,53 @@ const FishSpeciesDatabase = () => {
     return fishSpecies.map(normalizeSpeciesData);
   }, [fishSpecies]);
   
-  // Fetch fish species from ESP32 on component mount
+  // Fetch fish species from ESP32 on component mount and when component updates
   useEffect(() => {
     const fetchSpeciesFromDevice = async () => {
       try {
         const result = await apiService.getFishSpeciesList();
         if (result.success && result.data && Array.isArray(result.data)) {
-          // Normalize and update the species list
-          const normalized = result.data.map(normalizeSpeciesData);
+          console.log('Raw species data from ESP32:', JSON.stringify(result.data, null, 2));
+          
+          // Normalize and merge with defaults to preserve waterFlow and rain
+          const normalized = result.data.map((esp32Species) => {
+            // Find matching default species by ID or name
+            const defaultSpecies = DEFAULT_FISH_SPECIES.find(s => 
+              String(s.id) === String(esp32Species.id) || 
+              s.name.toLowerCase() === esp32Species.name.toLowerCase()
+            );
+            
+            // Normalize ESP32 data
+            let normalized = normalizeSpeciesData(esp32Species);
+            
+            // Always use defaults for waterFlow and rain to ensure correct values
+            // ESP32 provides pH and temp ranges, but we use our defaults for waterFlow/rain
+            if (defaultSpecies) {
+              // Always use default waterFlow and rain values
+              normalized.waterFlow = defaultSpecies.waterFlow;
+              normalized.rain = defaultSpecies.rain;
+              
+              // Preserve other default properties
+              normalized.id = defaultSpecies.id;
+              normalized.description = defaultSpecies.description || normalized.description;
+              
+              console.log(`Merged ${normalized.name}: waterFlow=${normalized.waterFlow}, rain=${normalized.rain} (from defaults)`);
+            } else {
+              console.warn(`No default found for ${esp32Species.name}, using ESP32 values`);
+            }
+            
+            return normalized;
+          });
+          
+          console.log('Final normalized species data:', JSON.stringify(normalized, null, 2));
+          // Verify waterFlow and rain are preserved
+          normalized.forEach((species, index) => {
+            console.log(`Species ${index} (${species.name}): waterFlow=${species.waterFlow} (${typeof species.waterFlow}), rain=${species.rain} (${typeof species.rain})`);
+          });
           // Update Redux store with fetched species from device
           dispatch(setFishSpecies(normalized));
-          console.log('Fetched fish species from device:', normalized);
+        } else {
+          console.warn('Invalid response from ESP32, using defaults');
         }
       } catch (error) {
         console.warn('Could not fetch species from device, using defaults:', error);
@@ -71,7 +122,9 @@ const FishSpeciesDatabase = () => {
         idealTemp: {
           min: normalizedSpecies.idealTempMin,
           max: normalizedSpecies.idealTempMax
-        }
+        },
+        waterFlow: normalizedSpecies.waterFlow !== undefined ? normalizedSpecies.waterFlow : false,
+        rain: normalizedSpecies.rain !== undefined ? normalizedSpecies.rain : false
       };
 
       console.log('Sending species config to ESP32:', speciesData);
@@ -86,6 +139,10 @@ const FishSpeciesDatabase = () => {
           duration: 4,
           placement: 'topRight',
         });
+        
+        // Don't refresh species list after selection - it overwrites correct values
+        // The species list doesn't change when selecting a fish, so no need to refresh
+        console.log('Species selected successfully, keeping current species list with correct waterFlow/rain values');
       } else {
         message.error('Failed to configure species settings');
         notification.error({
@@ -181,6 +238,26 @@ const FishSpeciesDatabase = () => {
       render: (_, record) => (
         <Tag color="orange">
           {record.idealTempMin}°C - {record.idealTempMax}°C
+        </Tag>
+      )
+    },
+    {
+      title: 'Water Flow',
+      dataIndex: 'waterFlow',
+      key: 'waterFlow',
+      render: (_, record) => (
+        <Tag color={record.waterFlow ? 'green' : 'default'}>
+          {record.waterFlow ? 'Yes' : 'No'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Rain',
+      dataIndex: 'rain',
+      key: 'rain',
+      render: (_, record) => (
+        <Tag color={record.rain ? 'blue' : 'default'}>
+          {record.rain ? 'Yes' : 'No'}
         </Tag>
       )
     },
@@ -318,6 +395,22 @@ const FishSpeciesDatabase = () => {
                     value={deviceData?.temperature?.toFixed(1) || 'N/A'}
                     suffix="°C"
                     valueStyle={{ color: status.tempStatus === 'good' ? '#52c41a' : '#ff4d4f' }}
+                  />
+                </Col>
+              </Row>
+              <Row gutter={[16, 16]} style={{ marginTop: '16px' }}>
+                <Col xs={24} sm={12} lg={6}>
+                  <Statistic
+                    title="Water Flow"
+                    value={selectedSpecies.waterFlow ? 'ON' : 'OFF'}
+                    valueStyle={{ color: selectedSpecies.waterFlow ? '#52c41a' : '#d9d9d9' }}
+                  />
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                  <Statistic
+                    title="Rain"
+                    value={selectedSpecies.rain ? 'ON' : 'OFF'}
+                    valueStyle={{ color: selectedSpecies.rain ? '#52c41a' : '#d9d9d9' }}
                   />
                 </Col>
               </Row>
