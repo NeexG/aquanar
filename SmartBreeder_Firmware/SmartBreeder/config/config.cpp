@@ -57,7 +57,13 @@ void loadFishType() {
   preferences.begin(PREF_NAMESPACE, true);
   activeFishType = (FishType)preferences.getUChar(PREF_FISH_TYPE_KEY, FISH_NONE);
   preferences.end();
-  Serial.printf("Fish type loaded: %s\n", FISH_PROFILES[activeFishType].name.c_str());
+  Serial.printf("Fish type loaded from memory: %s\n", FISH_PROFILES[activeFishType].name.c_str());
+}
+
+// Reset fish type to NONE at startup (always start with no fish selected)
+void resetFishTypeAtStartup() {
+  activeFishType = FISH_NONE;
+  Serial.println("Fish type reset to NONE at startup (user must select fish manually)");
 }
 
 // Save fish type
@@ -66,6 +72,16 @@ void saveFishType() {
   preferences.putUChar(PREF_FISH_TYPE_KEY, activeFishType);
   preferences.end();
   Serial.printf("Fish type saved: %s\n", FISH_PROFILES[activeFishType].name.c_str());
+  
+  // Control air pump based on fish selection
+  // Air pump ON when any fish is selected, OFF when no fish selected
+  if (activeFishType != FISH_NONE) {
+    digitalWrite(REL_AIR_PUMP, getRelayLevel(true)); // ON
+    Serial.println("✓ Air pump activated (fish selected)");
+  } else {
+    digitalWrite(REL_AIR_PUMP, getRelayLevel(false)); // OFF
+    Serial.println("✓ Air pump deactivated (no fish selected)");
+  }
 }
 
 // Get active fish profile (returns custom profile if set, otherwise default profile)

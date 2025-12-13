@@ -113,6 +113,7 @@ void loadCalibration();
 void saveCalibration();
 void loadFishType();
 void saveFishType();
+void resetFishTypeAtStartup(); // Reset to FISH_NONE at startup
 FishProfile getActiveFishProfile(); // Get active fish profile (custom or default)
 
 #endif

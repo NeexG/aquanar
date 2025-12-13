@@ -39,8 +39,13 @@ void AutoControl::checkTemperature() {
   if (activeFishType == FISH_NONE && !useCustom) {
     fanControl->set(false, false);
     digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+    // Air pump OFF when no fish selected
+    digitalWrite(REL_AIR_PUMP, getRelayLevel(false));
     return;
   }
+  
+  // Air pump ON when any fish is selected
+  digitalWrite(REL_AIR_PUMP, getRelayLevel(true));
   
   float temp = tempSensor->read();
   FishProfile profile = getActiveFishProfile();

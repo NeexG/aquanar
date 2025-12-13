@@ -191,23 +191,29 @@ void setup() {
   
   // Load saved settings
   loadCalibration();
-  loadFishType();
+  loadFishType(); // Load saved fish type (for reference, but we'll reset it)
   
-  Serial.printf("Active Fish Type: %s\n", FISH_PROFILES[activeFishType].name.c_str());
+  // CRITICAL: Always start with FISH_NONE - user must select fish manually
+  // This ensures only light relay is ON at startup, all other relays OFF
+  resetFishTypeAtStartup();
   
-  // Only show ranges if a fish is selected
-  if (activeFishType != FISH_NONE) {
-    Serial.printf("pH Range: %.1f - %.1f\n", 
-                  FISH_PROFILES[activeFishType].phMin,
-                  FISH_PROFILES[activeFishType].phMax);
-    Serial.printf("Temp Range: %.1f - %.1f°C\n",
-                  FISH_PROFILES[activeFishType].tempMin,
-                  FISH_PROFILES[activeFishType].tempMax);
-    Serial.println("Auto control: ENABLED (pH and temperature relays will work)");
-  } else {
-    Serial.println("No fish selected - All relays OFF");
-    Serial.println("Auto control: DISABLED (select a fish species to activate)");
-  }
+  // Ensure all relays are OFF except light (which is already ON)
+  digitalWrite(REL_ACID_PUMP, getRelayLevel(false));
+  digitalWrite(REL_ALKALI_PUMP, getRelayLevel(false));
+  digitalWrite(REL_COOLER_FAN, getRelayLevel(false));
+  digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+  digitalWrite(REL_AIR_PUMP, getRelayLevel(false));
+  digitalWrite(REL_WATER_FLOW, getRelayLevel(false));
+  digitalWrite(REL_RAIN_PUMP, getRelayLevel(false));
+  // Light relay is already ON (set earlier)
+  
+  Serial.println("\n=== STARTUP STATE ===");
+  Serial.println("Active Fish Type: NONE (must be selected manually)");
+  Serial.println("Relay Status:");
+  Serial.println("  ✓ Light Control: ON (always)");
+  Serial.println("  ✗ All other relays: OFF");
+  Serial.println("  → Select a fish species to activate relays");
+  Serial.println("=====================\n");
   
   // Initialize WiFi and Web Server
   wifiServer.begin();

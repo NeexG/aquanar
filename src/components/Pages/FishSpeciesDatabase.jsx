@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Table, Button, Space, Tag, message, notification, Card, Row, Col, Statistic } from 'antd';
-import { DatabaseOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Tag, message, notification, Card, Row, Col, Statistic, Popconfirm } from 'antd';
+import { DatabaseOutlined, CheckCircleOutlined, InfoCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectApp } from '../../store';
 import { setSelectedSpecies, sendSpeciesConfig, setFishSpecies } from '../../store/appSlice';
@@ -106,6 +106,48 @@ const FishSpeciesDatabase = () => {
     }
   };
 
+  const handleUnselectSpecies = async () => {
+    try {
+      // Send type 0 (FISH_NONE) to ESP32 to unselect fish
+      const speciesData = {
+        type: 0  // FISH_NONE = 0
+      };
+
+      console.log('Unselecting fish species - sending type 0 to ESP32');
+      const result = await dispatch(sendSpeciesConfig(speciesData));
+
+      if (result.type.endsWith('/fulfilled')) {
+        // Clear selected species in Redux
+        dispatch(setSelectedSpecies(null));
+        
+        message.success('Fish species unselected successfully');
+
+        notification.success({
+          message: 'Species Unselected',
+          description: 'All relays (except light) have been turned OFF. Select a fish species to activate them.',
+          duration: 4,
+          placement: 'topRight',
+        });
+      } else {
+        message.error('Failed to unselect species');
+        notification.error({
+          message: 'Unselect Failed',
+          description: 'Failed to unselect fish species',
+          duration: 5,
+          placement: 'topRight',
+        });
+      }
+    } catch (error) {
+      message.error('Error unselecting species');
+      notification.error({
+        message: 'Unselect Error',
+        description: 'Error unselecting fish species',
+        duration: 5,
+        placement: 'topRight',
+      });
+    }
+  };
+
   const columns = [
     {
       title: 'Species Name',
@@ -153,14 +195,43 @@ const FishSpeciesDatabase = () => {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button
-            type={selectedSpecies?.id === record.id ? 'default' : 'primary'}
-            onClick={() => handleSelectSpecies(record)}
-            loading={isLoading}
-            icon={<CheckCircleOutlined />}
-          >
-            {selectedSpecies?.id === record.id ? 'Selected' : 'Select Species'}
-          </Button>
+          {selectedSpecies?.id === record.id ? (
+            <>
+              <Button
+                type="default"
+                disabled
+                icon={<CheckCircleOutlined />}
+              >
+                Selected
+              </Button>
+              <Popconfirm
+                title="Unselect Fish Species"
+                description="Are you sure you want to unselect this fish species? All relays (except light) will be turned OFF."
+                onConfirm={handleUnselectSpecies}
+                okText="Yes, Unselect"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="default"
+                  danger
+                  icon={<CloseCircleOutlined />}
+                  loading={isLoading}
+                >
+                  Unselect
+                </Button>
+              </Popconfirm>
+            </>
+          ) : (
+            <Button
+              type="primary"
+              onClick={() => handleSelectSpecies(record)}
+              loading={isLoading}
+              icon={<CheckCircleOutlined />}
+            >
+              Select Species
+            </Button>
+          )}
         </Space>
       )
     }
@@ -194,6 +265,24 @@ const FishSpeciesDatabase = () => {
                 <Space>
                   <InfoCircleOutlined style={{ color: '#00bcd4' }} />
                   Current Species: {selectedSpecies.name}
+                  <Popconfirm
+                    title="Unselect Fish Species"
+                    description="Are you sure you want to unselect this fish species? All relays (except light) will be turned OFF."
+                    onConfirm={handleUnselectSpecies}
+                    okText="Yes, Unselect"
+                    cancelText="Cancel"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button
+                      type="default"
+                      danger
+                      icon={<CloseCircleOutlined />}
+                      loading={isLoading}
+                      size="small"
+                    >
+                      Unselect
+                    </Button>
+                  </Popconfirm>
                 </Space>
               }
               style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' }}
