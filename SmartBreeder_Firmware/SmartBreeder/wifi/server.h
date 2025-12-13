@@ -25,6 +25,7 @@ private:
   void handleAPIStatus();
   void handleAPIControl();
   void handleAPISpecies();
+  void handleAPISpeciesList(); // Get list of all available fish species
   void handleAPICalibrate();
   void handleAPIWiFi();
   void handleAPIPing();

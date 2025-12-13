@@ -62,6 +62,7 @@ void SmartBreederServer::begin() {
     server->on("/api/status", HTTP_GET, [this]() { handleAPIStatus(); });
     server->on("/api/control", HTTP_POST, [this]() { handleAPIControl(); });
     server->on("/api/species", HTTP_POST, [this]() { handleAPISpecies(); });
+    server->on("/api/species/list", HTTP_GET, [this]() { handleAPISpeciesList(); }); // Get all species
     server->on("/api/calibrate", HTTP_POST, [this]() { handleAPICalibrate(); });
     server->on("/api/wifi", HTTP_POST, [this]() { handleAPIWiFi(); });
     server->on("/api/ping", HTTP_GET, [this]() { handleAPIPing(); });
@@ -123,6 +124,24 @@ String SmartBreederServer::getStatusJSON() {
   
   // Optional bonus fields (won't break dashboard if missing)
   json += ",\"fishType\":" + String(activeFishType);
+  
+  // Add custom fish profile info if available
+  Preferences prefs;
+  prefs.begin(PREF_NAMESPACE, true);
+  bool useCustom = prefs.getBool("use_custom_profile", false);
+  if (useCustom) {
+    FishProfile custom = getActiveFishProfile();
+    json += ",\"customProfile\":true";
+    json += ",\"fishName\":\"" + custom.name + "\"";
+    json += ",\"phRange\":{\"min\":" + String(custom.phMin, 1) + ",\"max\":" + String(custom.phMax, 1) + "}";
+    json += ",\"tempRange\":{\"min\":" + String(custom.tempMin, 1) + ",\"max\":" + String(custom.tempMax, 1) + "}";
+  } else {
+    json += ",\"customProfile\":false";
+    FishProfile profile = FISH_PROFILES[activeFishType];
+    json += ",\"phRange\":{\"min\":" + String(profile.phMin, 1) + ",\"max\":" + String(profile.phMax, 1) + "}";
+    json += ",\"tempRange\":{\"min\":" + String(profile.tempMin, 1) + ",\"max\":" + String(profile.tempMax, 1) + "}";
+  }
+  prefs.end();
   json += ",\"cooldownRemaining\":" + String(phControl->getCooldownRemaining());
   json += ",\"phSafe\":" + String(phSensor->isSafe() ? "true" : "false");
   json += ",\"tempSafe\":" + String(tempSensor->isSafe() ? "true" : "false");
@@ -203,18 +222,18 @@ void SmartBreederServer::handleAPIControl() {
       return;
     }
     
-    // Apply commands with manual override
+    // Apply commands
     if (fanSet) {
       fanControl->set(fanVal, true);
       Serial.printf("Fan %s (manual)\n", fanVal ? "ON" : "OFF");
     }
     if (acidSet) {
-      phControl->setAcid(acidVal, true);
-      Serial.printf("Acid pump %s (manual)\n", acidVal ? "ON" : "OFF");
+      phControl->setAcid(acidVal);
+      Serial.printf("Acid pump %s\n", acidVal ? "ON" : "OFF");
     }
     if (baseSet) {
-      phControl->setBase(baseVal, true);
-      Serial.printf("Base pump %s (manual)\n", baseVal ? "ON" : "OFF");
+      phControl->setBase(baseVal);
+      Serial.printf("Base pump %s\n", baseVal ? "ON" : "OFF");
     }
     
     // Return success response (dashboard expects this format)
@@ -232,14 +251,144 @@ void SmartBreederServer::handleAPISpecies() {
     String body = server->arg("plain");
     Serial.println("Species config: " + body);
     
+    // Parse custom fish profile from dashboard (Fish Species Database)
+    // Format: {"name":"Goldfish","idealPh":{"min":7.0,"max":9.0},"idealTemp":{"min":24,"max":28}}
+    bool hasCustomProfile = false;
+    float customPhMin = 0, customPhMax = 0;
+    float customTempMin = 0, customTempMax = 0;
+    String fishName = "";
+    
+    // Extract custom pH range
+    if (body.indexOf("\"idealPh\"") >= 0) {
+      int phMinPos = body.indexOf("\"min\":");
+      int phMaxPos = body.indexOf("\"max\":");
+      
+      if (phMinPos >= 0 && phMaxPos >= 0) {
+        // Find the min value (could be in idealPh or idealTemp)
+        int idealPhPos = body.indexOf("\"idealPh\"");
+        int idealTempPos = body.indexOf("\"idealTemp\"");
+        
+        // Extract pH min
+        if (idealPhPos >= 0 && phMinPos > idealPhPos) {
+          int start = body.indexOf("\"min\":", idealPhPos) + 6;
+          int end = body.indexOf(",", start);
+          if (end < 0) end = body.indexOf("}", start);
+          if (end > start) {
+            customPhMin = body.substring(start, end).toFloat();
+            hasCustomProfile = true;
+          }
+        }
+        
+        // Extract pH max
+        if (idealPhPos >= 0 && phMaxPos > idealPhPos) {
+          int start = body.indexOf("\"max\":", idealPhPos) + 6;
+          int end = body.indexOf("}", start);
+          if (end < 0) end = body.indexOf(",", start);
+          if (end > start) {
+            customPhMax = body.substring(start, end).toFloat();
+          }
+        }
+        
+        // Extract temp min
+        if (idealTempPos >= 0) {
+          int start = body.indexOf("\"min\":", idealTempPos) + 6;
+          int end = body.indexOf(",", start);
+          if (end < 0) end = body.indexOf("}", start);
+          if (end > start) {
+            customTempMin = body.substring(start, end).toFloat();
+          }
+        }
+        
+        // Extract temp max
+        if (idealTempPos >= 0) {
+          int start = body.indexOf("\"max\":", idealTempPos) + 6;
+          int end = body.indexOf("}", start);
+          if (end < 0) end = body.indexOf(",", start);
+          if (end > start) {
+            customTempMax = body.substring(start, end).toFloat();
+          }
+        }
+      }
+    }
+    
+    // Extract fish name
+    if (body.indexOf("\"name\"") >= 0) {
+      int nameStart = body.indexOf("\"name\":\"") + 8;
+      int nameEnd = body.indexOf("\"", nameStart);
+      if (nameEnd > nameStart) {
+        fishName = body.substring(nameStart, nameEnd);
+      }
+    }
+    
+    // If custom profile provided, save it and update active fish type
+    if (hasCustomProfile && customPhMin > 0 && customPhMax > 0) {
+      // Save custom profile to preferences
+      Preferences prefs;
+      prefs.begin(PREF_NAMESPACE, false);
+      prefs.putFloat("custom_ph_min", customPhMin);
+      prefs.putFloat("custom_ph_max", customPhMax);
+      prefs.putFloat("custom_temp_min", customTempMin);
+      prefs.putFloat("custom_temp_max", customTempMax);
+      prefs.putString("custom_fish_name", fishName);
+      prefs.putBool("use_custom_profile", true);
+      prefs.end();
+      
+      Serial.printf("\n=== FISH SPECIES SELECTED FROM DASHBOARD ===\n");
+      Serial.printf("Species Name: %s\n", fishName.c_str());
+      Serial.printf("pH Range: %.1f - %.1f\n", customPhMin, customPhMax);
+      Serial.printf("Temperature Range: %.1f - %.1f°C\n", customTempMin, customTempMax);
+      Serial.printf("Custom Profile: ENABLED\n");
+      Serial.printf("pH control will use these ranges for automatic correction\n");
+      Serial.printf("pH check interval: 1 minute\n");
+      Serial.printf("Cooldown period: 1 minute between corrections\n");
+      Serial.printf("==========================================\n\n");
+      
+      // Try to match fish name to existing type for compatibility
+      if (fishName.indexOf("Gold") >= 0 || fishName.indexOf("gold") >= 0) {
+        activeFishType = FISH_GOLD;
+      } else if (fishName.indexOf("Betta") >= 0 || fishName.indexOf("betta") >= 0) {
+        activeFishType = FISH_BETTA;
+      } else if (fishName.indexOf("Guppy") >= 0 || fishName.indexOf("guppy") >= 0) {
+        activeFishType = FISH_GUPPY;
+      } else if (fishName.indexOf("Neon") >= 0 || fishName.indexOf("neon") >= 0 || 
+                 fishName.indexOf("Tetra") >= 0 || fishName.indexOf("tetra") >= 0) {
+        activeFishType = FISH_NEON_TETRA;
+      } else if (fishName.indexOf("Angelfish") >= 0 || fishName.indexOf("angelfish") >= 0 ||
+                 fishName.indexOf("Angel") >= 0 || fishName.indexOf("angel") >= 0) {
+        activeFishType = FISH_ANGELFISH;
+      } else if (fishName.indexOf("Comet") >= 0 || fishName.indexOf("comet") >= 0) {
+        activeFishType = FISH_COMET;
+      } else if (fishName.indexOf("Rohu") >= 0 || fishName.indexOf("rohu") >= 0) {
+        activeFishType = FISH_ROHU;
+      } else {
+        activeFishType = FISH_GOLD; // Default fallback
+      }
+      saveFishType();
+      
+      // DO NOT reset cooldown - always enforce 1-minute wait between corrections
+      // This prevents rapid repeated corrections
+      Serial.println("New species selected - pH control will activate after 1-minute cooldown");
+      Serial.println("pH check interval: 1 minute | Cooldown: 1 minute (enforced)");
+      
+      server->send(200, "application/json", "{\"success\":true,\"message\":\"Custom profile saved and activated\"}");
+      return;
+    }
+    
     // Try to parse by type number first (simple format: {"type":1})
     if (body.indexOf("\"type\"") >= 0) {
       int typePos = body.indexOf("\"type\":");
       if (typePos >= 0) {
         int typeValue = body.substring(typePos + 7).toInt();
-        if (typeValue >= 0 && typeValue <= 3) {
+        if (typeValue >= 0 && typeValue <= 7) { // Updated: 8 fish types (0-7)
           activeFishType = (FishType)typeValue;
           saveFishType();
+          
+          // Clear custom profile when using predefined type
+          Preferences prefs;
+          prefs.begin(PREF_NAMESPACE, false);
+          prefs.putBool("use_custom_profile", false);
+          prefs.end();
+          
           Serial.printf("Fish type set to: %s (by type number)\n", FISH_PROFILES[activeFishType].name.c_str());
           server->send(200, "application/json", "{\"success\":true}");
           return;
@@ -247,16 +396,37 @@ void SmartBreederServer::handleAPISpecies() {
       }
     }
     
-    // Parse by name (React dashboard format)
-    // Format: {"name":"Goldfish","idealPh":{"min":6.5,"max":8.0},"idealTemp":{"min":18,"max":24}}
+    // Parse by name (fallback - without custom ranges)
     if (body.indexOf("\"name\"") >= 0) {
-      // Match fish name to type (case-insensitive matching)
-      // Check multiple case variations
       if (body.indexOf("\"name\":\"Goldfish\"") >= 0 || body.indexOf("\"name\":\"goldfish\"") >= 0 ||
           body.indexOf("\"name\":\"Gold Fish\"") >= 0 || body.indexOf("\"name\":\"gold fish\"") >= 0) {
         activeFishType = FISH_GOLD;
         saveFishType();
-        Serial.println("Fish type set to: Gold Fish (by name)");
+        Serial.println("Fish type set to: Goldfish (by name)");
+        server->send(200, "application/json", "{\"success\":true}");
+        return;
+      } else if (body.indexOf("\"name\":\"Betta\"") >= 0 || body.indexOf("\"name\":\"betta\"") >= 0) {
+        activeFishType = FISH_BETTA;
+        saveFishType();
+        Serial.println("Fish type set to: Betta Fish (by name)");
+        server->send(200, "application/json", "{\"success\":true}");
+        return;
+      } else if (body.indexOf("\"name\":\"Guppy\"") >= 0 || body.indexOf("\"name\":\"guppy\"") >= 0) {
+        activeFishType = FISH_GUPPY;
+        saveFishType();
+        Serial.println("Fish type set to: Guppy (by name)");
+        server->send(200, "application/json", "{\"success\":true}");
+        return;
+      } else if (body.indexOf("\"name\":\"Neon Tetra\"") >= 0 || body.indexOf("\"name\":\"neon tetra\"") >= 0) {
+        activeFishType = FISH_NEON_TETRA;
+        saveFishType();
+        Serial.println("Fish type set to: Neon Tetra (by name)");
+        server->send(200, "application/json", "{\"success\":true}");
+        return;
+      } else if (body.indexOf("\"name\":\"Angelfish\"") >= 0 || body.indexOf("\"name\":\"angelfish\"") >= 0) {
+        activeFishType = FISH_ANGELFISH;
+        saveFishType();
+        Serial.println("Fish type set to: Angelfish (by name)");
         server->send(200, "application/json", "{\"success\":true}");
         return;
       } else if (body.indexOf("\"name\":\"Comet\"") >= 0 || body.indexOf("\"name\":\"comet\"") >= 0) {
@@ -278,23 +448,73 @@ void SmartBreederServer::handleAPISpecies() {
         server->send(200, "application/json", "{\"success\":true}");
         return;
       }
-      
-      // Try matching other common fish names from dashboard
-      if (body.indexOf("\"name\":\"Betta\"") >= 0 || body.indexOf("\"name\":\"betta\"") >= 0 ||
-          body.indexOf("\"name\":\"Betta Fish\"") >= 0 || body.indexOf("\"name\":\"betta fish\"") >= 0) {
-        // Betta not in firmware profiles, but accept it and use closest match (Gold)
-        activeFishType = FISH_GOLD;
-        saveFishType();
-        Serial.println("Fish type set to: Gold Fish (Betta mapped)");
-        server->send(200, "application/json", "{\"success\":true}");
-        return;
-      }
     }
     
     Serial.println("Warning: Could not parse species data");
   }
   
   server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid species data\"}");
+}
+
+void SmartBreederServer::handleAPISpeciesList() {
+  setCORSHeaders();
+  
+  // Return list of all available fish species with their pH and temperature ranges
+  // ALL temperature ranges are set within 25-32°C (random values in this range)
+  String json = "[";
+  
+  // Return all fish species (excluding FISH_NONE for the database list)
+  // Start from index 1 to skip "None"
+  for (int i = 1; i < 8; i++) { // 7 fish species: Goldfish, Betta, Guppy, Neon Tetra, Angelfish, Comet, Rohu
+    FishProfile profile = FISH_PROFILES[i];
+    if (i > 1) json += ",";
+    json += "{";
+    json += "\"id\":" + String(i) + ",";
+    json += "\"name\":\"" + profile.name + "\",";
+    json += "\"idealPh\":{";
+    json += "\"min\":" + String(profile.phMin, 1) + ",";
+    json += "\"max\":" + String(profile.phMax, 1);
+    json += "},";
+    json += "\"idealTemp\":{";
+    // All temperature ranges are within 25-32°C (random values)
+    json += "\"min\":" + String(profile.tempMin, 1) + ",";
+    json += "\"max\":" + String(profile.tempMax, 1);
+    json += "},";
+    json += "\"description\":\"";
+    
+    // Add descriptions for each fish
+    switch(i) {
+      case 1: // Goldfish
+        json += "Common goldfish, hardy and adaptable species";
+        break;
+      case 2: // Betta Fish
+        json += "Siamese fighting fish, tropical species";
+        break;
+      case 3: // Guppy
+        json += "Live-bearing tropical fish, colorful and active";
+        break;
+      case 4: // Neon Tetra
+        json += "Small schooling fish, prefers acidic water";
+        break;
+      case 5: // Angelfish
+        json += "Large cichlid, requires stable water conditions";
+        break;
+      case 6: // Comet
+        json += "Comet goldfish, single-tailed variety";
+        break;
+      case 7: // Rohu
+        json += "Rohu fish, popular freshwater species";
+        break;
+      default:
+        json += "Fish species profile";
+    }
+    json += "\"";
+    json += "}";
+  }
+  
+  json += "]";
+  
+  server->send(200, "application/json", json);
 }
 
 void SmartBreederServer::handleAPICalibrate() {
@@ -550,14 +770,18 @@ String SmartBreederServer::getDashboardHTML() {
             </div>
             
             <div class="card">
-                <h2>Fish Profile</h2>
+                <h2>Fish Species</h2>
                 <select id="fishSelect" onchange="setFishType()">
-                    <option value="0">None</option>
-                    <option value="1">Gold Fish</option>
-                    <option value="2">Comet</option>
-                    <option value="3">Rohu</option>
+                    <option value="0">None (pH: 6.5-7.5, Temp: 26-30°C)</option>
+                    <option value="1">Goldfish (pH: 6.5-8.0, Temp: 27-31°C)</option>
+                    <option value="2">Betta Fish (pH: 6.5-7.5, Temp: 26.5-30.5°C)</option>
+                    <option value="3">Guppy (pH: 7.0-8.5, Temp: 25.5-29.5°C)</option>
+                    <option value="4">Neon Tetra (pH: 5.0-7.0, Temp: 25-29°C)</option>
+                    <option value="5">Angelfish (pH: 6.0-7.5, Temp: 28-32°C)</option>
+                    <option value="6">Comet (pH: 6.5-7.2, Temp: 26-30°C)</option>
+                    <option value="7">Rohu (pH: 6.6-8.0, Temp: 27.5-31.5°C)</option>
                 </select>
-                <div class="info-text" id="fishInfo"></div>
+                <div class="info-text" id="fishInfo" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px;"></div>
             </div>
             
             <div class="card">
@@ -601,6 +825,33 @@ String SmartBreederServer::getDashboardHTML() {
                     document.getElementById('baseBtn').className = baseState ? 'success' : "";
                     
                     document.getElementById('fishSelect').value = data.fishType;
+                    
+                    // Update fish profile info with pH and temperature ranges
+                    let fishInfoHTML = "";
+                    if (data.phRange && data.tempRange) {
+                        const fishNames = ["None", "Goldfish", "Betta Fish", "Guppy", "Neon Tetra", "Angelfish", "Comet", "Rohu"];
+                        const fishName = fishNames[data.fishType] || "Unknown";
+                        fishInfoHTML = `<strong>${fishName}</strong><br>`;
+                        fishInfoHTML += `pH Range: ${data.phRange.min} - ${data.phRange.max}<br>`;
+                        fishInfoHTML += `Temp Range: ${data.tempRange.min} - ${data.tempRange.max}°C`;
+                    } else {
+                        // Fallback to default ranges (all temp ranges within 25-32°C)
+                        const fishProfiles = [
+                            {name: "None", pH: "6.5-7.5", temp: "26.0-30.0°C"},
+                            {name: "Goldfish", pH: "6.5-8.0", temp: "27.0-31.0°C"},
+                            {name: "Betta Fish", pH: "6.5-7.5", temp: "26.5-30.5°C"},
+                            {name: "Guppy", pH: "7.0-8.5", temp: "25.5-29.5°C"},
+                            {name: "Neon Tetra", pH: "5.0-7.0", temp: "25.0-29.0°C"},
+                            {name: "Angelfish", pH: "6.0-7.5", temp: "28.0-32.0°C"},
+                            {name: "Comet", pH: "6.5-7.2", temp: "26.0-30.0°C"},
+                            {name: "Rohu", pH: "6.6-8.0", temp: "27.5-31.5°C"}
+                        ];
+                        const profile = fishProfiles[data.fishType] || fishProfiles[0];
+                        fishInfoHTML = `<strong>${profile.name}</strong><br>`;
+                        fishInfoHTML += `pH Range: ${profile.pH}<br>`;
+                        fishInfoHTML += `Temp Range: ${profile.temp}`;
+                    }
+                    document.getElementById('fishInfo').innerHTML = fishInfoHTML;
                     
                     let safetyHTML = "";
                     if (!data.phSafe) safetyHTML += '<div class="status-badge status-error">pH UNSAFE!</div>';

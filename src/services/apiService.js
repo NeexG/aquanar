@@ -188,6 +188,38 @@ export const apiService = {
     return getESP32IP();
   },
 
+  // Get fish species list from ESP32
+  async getFishSpeciesList() {
+    try {
+      refreshBaseURL(); // Refresh IP from localStorage
+      const endpoint = getEndpoint(DEVICE_CONSTANTS.API_ENDPOINTS.SPECIES_LIST);
+      const response = await api.get(endpoint);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Fish species list retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Error fetching fish species list:', error);
+      
+      let errorMessage = 'Failed to fetch fish species list';
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        errorMessage = `Connection timeout. ESP32 at ${getESP32IP()} is not responding.`;
+      } else if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+        errorMessage = `Cannot connect to ESP32 at ${getESP32IP()}. Check IP address.`;
+      } else if (error.response) {
+        errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
+      }
+      
+      return {
+        success: false,
+        data: null,
+        message: errorMessage,
+        error: error
+      };
+    }
+  },
+
   // Test connection to ESP32
   async testConnection() {
     try {

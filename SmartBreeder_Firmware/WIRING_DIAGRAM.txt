@@ -54,15 +54,15 @@ ESP32 DEV MODULE PINOUT
    ─────────────────────────
    
    ESP32 GPIO18 ──────────────────── Relay 1 IN (Fan)
-   ESP32 GPIO23 ──────────────────── Relay 2 IN (Acid Pump)
-   ESP32 GPIO19 ──────────────────── Relay 3 IN (Base Pump)
+   ESP32 GPIO23 ──────────────────── Relay 2 IN (Base/Alkali Pump)
+   ESP32 GPIO16 ──────────────────── Relay 3 IN (Acid Pump)
    ESP32 GND ──────────────────────── Relay Module GND
    ESP32 5V (or external 5V) ──────── Relay Module VCC
    
    Relay Module Output:
    - Relay 1 COM/NO/NC ──────────── Fan Power
-   - Relay 2 COM/NO/NC ──────────── Acid Pump Power
-   - Relay 3 COM/NO/NC ──────────── Base Pump Power
+   - Relay 2 COM/NO/NC ──────────── Base/Alkali Pump Power
+   - Relay 3 COM/NO/NC ──────────── Acid Pump Power
    
    Note: Active-Low means LOW signal = Relay ON
 
@@ -100,8 +100,8 @@ pH Sensor VCC      3.3V          Power
 pH Sensor GND      GND           Ground
 
 Fan Relay IN       GPIO 18       Active-Low
-Acid Pump Relay    GPIO 23       Active-Low
-Base Pump Relay    GPIO 19       Active-Low
+Base/Alkali Pump   GPIO 23       Active-Low
+Acid Pump Relay    GPIO 16       Active-Low
 Relay Module GND   GND           Common ground
 Relay Module VCC   5V            Or external supply
 
@@ -124,8 +124,8 @@ TESTING CHECKLIST
 □ Temperature sensor reads correctly
 □ pH sensor reads correctly (calibrate first)
 □ Fan relay toggles correctly
+□ Base/Alkali pump relay toggles correctly (GPIO 23)
 □ Acid pump relay toggles correctly
-□ Base pump relay toggles correctly
 □ WiFi connects and dashboard accessible
 □ All sensors update in dashboard
 □ Manual control works from dashboard

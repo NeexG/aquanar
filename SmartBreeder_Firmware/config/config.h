@@ -13,7 +13,7 @@
 // Relay pins (Active-Low)
 #define REL_FAN 18          // Cooler fan relay
 #define REL_ACID_PUMP 23    // Acid pump relay
-#define REL_BASE_PUMP 19    // Base pump relay
+#define REL_BASE_PUMP 23    // Base pump relay - G23
 
 // LCD Configuration
 #define LCD_ADDRESS 0x27

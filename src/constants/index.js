@@ -6,28 +6,30 @@ export const DEVICE_CONSTANTS = {
     STATUS: '/api/status',
     CONTROL: '/api/control',
     SPECIES: '/api/species',
+    SPECIES_LIST: '/api/species/list',
     WIFI: '/api/wifi'
   }
 };
 
 // Default fish species data
+// All temperature ranges are within 25-32°C (random values in this range)
 export const DEFAULT_FISH_SPECIES = [
   {
     id: '1',
     name: 'Goldfish',
     idealPhMin: 6.5,
     idealPhMax: 8.0,
-    idealTempMin: 18,
-    idealTempMax: 24,
-    description: 'Common goldfish, hardy and adaptable'
+    idealTempMin: 27.0,
+    idealTempMax: 31.0,
+    description: 'Common goldfish, hardy and adaptable species'
   },
   {
     id: '2',
     name: 'Betta Fish',
     idealPhMin: 6.5,
     idealPhMax: 7.5,
-    idealTempMin: 24,
-    idealTempMax: 28,
+    idealTempMin: 26.5,
+    idealTempMax: 30.5,
     description: 'Siamese fighting fish, tropical species'
   },
   {
@@ -35,8 +37,8 @@ export const DEFAULT_FISH_SPECIES = [
     name: 'Guppy',
     idealPhMin: 7.0,
     idealPhMax: 8.5,
-    idealTempMin: 22,
-    idealTempMax: 28,
+    idealTempMin: 25.5,
+    idealTempMax: 29.5,
     description: 'Live-bearing tropical fish, colorful and active'
   },
   {
@@ -44,8 +46,8 @@ export const DEFAULT_FISH_SPECIES = [
     name: 'Neon Tetra',
     idealPhMin: 5.0,
     idealPhMax: 7.0,
-    idealTempMin: 20,
-    idealTempMax: 26,
+    idealTempMin: 25.0,
+    idealTempMax: 29.0,
     description: 'Small schooling fish, prefers acidic water'
   },
   {
@@ -53,9 +55,27 @@ export const DEFAULT_FISH_SPECIES = [
     name: 'Angelfish',
     idealPhMin: 6.0,
     idealPhMax: 7.5,
-    idealTempMin: 24,
-    idealTempMax: 30,
+    idealTempMin: 28.0,
+    idealTempMax: 32.0,
     description: 'Large cichlid, requires stable water conditions'
+  },
+  {
+    id: '6',
+    name: 'Comet',
+    idealPhMin: 6.5,
+    idealPhMax: 7.2,
+    idealTempMin: 26.0,
+    idealTempMax: 30.0,
+    description: 'Comet goldfish, single-tailed variety'
+  },
+  {
+    id: '7',
+    name: 'Rohu',
+    idealPhMin: 6.6,
+    idealPhMax: 8.0,
+    idealTempMin: 27.5,
+    idealTempMax: 31.5,
+    description: 'Rohu fish, popular freshwater species'
   }
 ];
 

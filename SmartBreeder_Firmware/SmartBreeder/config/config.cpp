@@ -68,3 +68,25 @@ void saveFishType() {
   Serial.printf("Fish type saved: %s\n", FISH_PROFILES[activeFishType].name.c_str());
 }
 
+// Get active fish profile (returns custom profile if set, otherwise default profile)
+FishProfile getActiveFishProfile() {
+  preferences.begin(PREF_NAMESPACE, true);
+  bool useCustom = preferences.getBool("use_custom_profile", false);
+  
+  if (useCustom) {
+    // Return custom profile from preferences
+    FishProfile custom;
+    custom.phMin = preferences.getFloat("custom_ph_min", 7.0f);
+    custom.phMax = preferences.getFloat("custom_ph_max", 9.0f);
+    custom.tempMin = preferences.getFloat("custom_temp_min", 24.0f);
+    custom.tempMax = preferences.getFloat("custom_temp_max", 28.0f);
+    custom.name = preferences.getString("custom_fish_name", "Custom");
+    preferences.end();
+    return custom;
+  } else {
+    // Return default profile for active fish type
+    preferences.end();
+    return FISH_PROFILES[activeFishType];
+  }
+}
+

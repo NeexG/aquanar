@@ -61,22 +61,7 @@ void PHSensor::calculateSlope() {
   }
 }
 
-// Quickselect algorithm to find median (O(n) average, much faster than full sort)
-static float quickSelect(float arr[], int left, int right, int k) {
-  if (left == right) return arr[left];
-  
-  int pivotIndex = left + ((right - left) >> 1); // Use middle as pivot
-  pivotIndex = partition(arr, left, right, pivotIndex);
-  
-  if (k == pivotIndex) {
-    return arr[k];
-  } else if (k < pivotIndex) {
-    return quickSelect(arr, left, pivotIndex - 1, k);
-  } else {
-    return quickSelect(arr, pivotIndex + 1, right, k);
-  }
-}
-
+// Partition function for floats (must be declared before quickSelect)
 static int partition(float arr[], int left, int right, int pivotIndex) {
   float pivotValue = arr[pivotIndex];
   // Swap pivot to end
@@ -98,6 +83,44 @@ static int partition(float arr[], int left, int right, int pivotIndex) {
   arr[right] = arr[storeIndex];
   arr[storeIndex] = temp;
   return storeIndex;
+}
+
+// Partition function for integers (must be declared before quickSelectInt)
+static int partitionInt(int arr[], int left, int right, int pivotIndex) {
+  int pivotValue = arr[pivotIndex];
+  int temp = arr[pivotIndex];
+  arr[pivotIndex] = arr[right];
+  arr[right] = temp;
+  
+  int storeIndex = left;
+  for (int i = left; i < right; i++) {
+    if (arr[i] < pivotValue) {
+      temp = arr[storeIndex];
+      arr[storeIndex] = arr[i];
+      arr[i] = temp;
+      storeIndex++;
+    }
+  }
+  temp = arr[right];
+  arr[right] = arr[storeIndex];
+  arr[storeIndex] = temp;
+  return storeIndex;
+}
+
+// Quickselect algorithm to find median (O(n) average, much faster than full sort)
+static float quickSelect(float arr[], int left, int right, int k) {
+  if (left == right) return arr[left];
+  
+  int pivotIndex = left + ((right - left) >> 1); // Use middle as pivot
+  pivotIndex = partition(arr, left, right, pivotIndex);
+  
+  if (k == pivotIndex) {
+    return arr[k];
+  } else if (k < pivotIndex) {
+    return quickSelect(arr, left, pivotIndex - 1, k);
+  } else {
+    return quickSelect(arr, pivotIndex + 1, right, k);
+  }
 }
 
 float PHSensor::calculateMedian() {
@@ -152,27 +175,6 @@ static int quickSelectInt(int arr[], int left, int right, int k) {
   } else {
     return quickSelectInt(arr, pivotIndex + 1, right, k);
   }
-}
-
-static int partitionInt(int arr[], int left, int right, int pivotIndex) {
-  int pivotValue = arr[pivotIndex];
-  int temp = arr[pivotIndex];
-  arr[pivotIndex] = arr[right];
-  arr[right] = temp;
-  
-  int storeIndex = left;
-  for (int i = left; i < right; i++) {
-    if (arr[i] < pivotValue) {
-      temp = arr[storeIndex];
-      arr[storeIndex] = arr[i];
-      arr[i] = temp;
-      storeIndex++;
-    }
-  }
-  temp = arr[right];
-  arr[right] = arr[storeIndex];
-  arr[storeIndex] = temp;
-  return storeIndex;
 }
 
 int PHSensor::getFastMedianADC() {

@@ -1,30 +1,80 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Table, Button, Space, Tag, message, notification, Card, Row, Col, Statistic } from 'antd';
 import { DatabaseOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectApp } from '../../store';
-import { setSelectedSpecies, sendSpeciesConfig } from '../../store/appSlice';
+import { setSelectedSpecies, sendSpeciesConfig, setFishSpecies } from '../../store/appSlice';
+import { apiService } from '../../services/apiService';
+
+// Helper function to normalize fish species data (handle both nested and flat formats)
+const normalizeSpeciesData = (species) => {
+  // If data comes from API with nested format: idealPh: { min, max }, idealTemp: { min, max }
+  if (species.idealPh && typeof species.idealPh === 'object') {
+    return {
+      ...species,
+      idealPhMin: species.idealPh.min,
+      idealPhMax: species.idealPh.max,
+      idealTempMin: species.idealTemp.min,
+      idealTempMax: species.idealTemp.max
+    };
+  }
+  // If data is already in flat format: idealPhMin, idealPhMax, etc.
+  return species;
+};
 
 const FishSpeciesDatabase = () => {
   const dispatch = useDispatch();
   const { fishSpecies, selectedSpecies, deviceData, isLoading } = useSelector(selectApp);
+  
+  // Normalize fish species data to handle both API format and default format
+  const normalizedFishSpecies = useMemo(() => {
+    return fishSpecies.map(normalizeSpeciesData);
+  }, [fishSpecies]);
+  
+  // Fetch fish species from ESP32 on component mount
+  useEffect(() => {
+    const fetchSpeciesFromDevice = async () => {
+      try {
+        const result = await apiService.getFishSpeciesList();
+        if (result.success && result.data && Array.isArray(result.data)) {
+          // Normalize and update the species list
+          const normalized = result.data.map(normalizeSpeciesData);
+          // Update Redux store with fetched species from device
+          dispatch(setFishSpecies(normalized));
+          console.log('Fetched fish species from device:', normalized);
+        }
+      } catch (error) {
+        console.warn('Could not fetch species from device, using defaults:', error);
+        // Keep using default species from constants
+      }
+    };
+    
+    fetchSpeciesFromDevice();
+  }, [dispatch]);
 
   const handleSelectSpecies = async (species) => {
-    dispatch(setSelectedSpecies(species));
+    // Normalize species data before using
+    const normalizedSpecies = normalizeSpeciesData(species);
+    
+    // Update selected species in Redux immediately for UI feedback
+    dispatch(setSelectedSpecies(normalizedSpecies));
 
     try {
+      // Send to ESP32 in the format it expects
+      // This will trigger pH and temperature control based on the selected species
       const speciesData = {
-        name: species.name,
+        name: normalizedSpecies.name,
         idealPh: {
-          min: species.idealPhMin,
-          max: species.idealPhMax
+          min: normalizedSpecies.idealPhMin,
+          max: normalizedSpecies.idealPhMax
         },
         idealTemp: {
-          min: species.idealTempMin,
-          max: species.idealTempMax
+          min: normalizedSpecies.idealTempMin,
+          max: normalizedSpecies.idealTempMax
         }
       };
 
+      console.log('Sending species config to ESP32:', speciesData);
       const result = await dispatch(sendSpeciesConfig(speciesData));
 
       if (result.type.endsWith('/fulfilled')) {
@@ -184,6 +234,12 @@ const FishSpeciesDatabase = () => {
               </Row>
               <div style={{ marginTop: '16px', padding: '12px', background: 'white', borderRadius: '6px' }}>
                 <strong>Description:</strong> {selectedSpecies.description}
+                {status.phAction && (
+                  <div style={{ marginTop: '8px', padding: '8px', background: '#fff3cd', borderRadius: '4px', color: '#856404' }}>
+                    <InfoCircleOutlined style={{ marginRight: '4px' }} />
+                    <strong>Auto Control:</strong> {status.phAction}. pH checks every 1 minute.
+                  </div>
+                )}
               </div>
             </Card>
           </Col>
@@ -201,7 +257,7 @@ const FishSpeciesDatabase = () => {
       >
         <Table
           columns={columns}
-          dataSource={fishSpecies}
+          dataSource={normalizedFishSpecies}
           rowKey="id"
           pagination={{
             pageSize: 10,

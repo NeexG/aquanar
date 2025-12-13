@@ -155,6 +155,10 @@ const appSlice = createSlice({
       state.selectedSpecies = action.payload;
     },
     
+    setFishSpecies: (state, action) => {
+      state.fishSpecies = action.payload;
+    },
+    
     clearError: (state) => {
       state.error = null;
     },
@@ -276,6 +280,7 @@ export const {
   addNotification,
   clearNotifications,
   setSelectedSpecies,
+  setFishSpecies,
   clearError,
   setLastAction
 } = appSlice.actions;

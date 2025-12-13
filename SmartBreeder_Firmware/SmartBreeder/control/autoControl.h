@@ -20,7 +20,7 @@ private:
   unsigned long lastTempCheck;
   unsigned long lastPHCheck;
   const unsigned long TEMP_CHECK_INTERVAL = 5000; // 5 seconds
-  const unsigned long PH_CHECK_INTERVAL = 10000;  // 10 seconds
+  const unsigned long PH_CHECK_INTERVAL = 1UL * 60UL * 1000UL;  // 1 minute (60000ms)
   
   void checkEmergency();
   void checkTemperature();

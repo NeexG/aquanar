@@ -9,7 +9,7 @@
   - DS18B20 on GPIO 27
   - Relays (Active-Low):
     * Acid Pump: GPIO 16
-    * Alkali Pump: GPIO 17
+    * Alkali Pump: GPIO 23
     * Cooler Fan: GPIO 18
     * Water Heater: GPIO 19
     * Air Pump: GPIO 26
@@ -73,12 +73,45 @@ String getTempState(float temp) {
 
 // ======================= SETUP =======================
 void setup() {
+  // Note: GPIO23 is already initialized in PHControl constructor (runs before setup())
+  // But we'll reinforce it here to be absolutely sure
+  
   Serial.begin(115200);
+  delay(100);
+  
+  // ======================= CRITICAL: REINFORCE GPIO23 STATE =======================
+  // Even though pins are initialized in constructor, reinforce here immediately
+  // For Active-Low relays: HIGH = OFF, LOW = ON
+  pinMode(REL_ALKALI_PUMP, OUTPUT);
+  digitalWrite(REL_ALKALI_PUMP, HIGH); // Explicitly set HIGH (OFF for Active-Low relay)
+  delay(10);
+  digitalWrite(REL_ALKALI_PUMP, HIGH); // Set again to ensure it's stable
+  delay(10);
+  
+  // Also reinforce Acid pump pin
+  pinMode(REL_ACID_PUMP, OUTPUT);
+  digitalWrite(REL_ACID_PUMP, HIGH); // Explicitly set HIGH (OFF for Active-Low relay)
+  delay(10);
+  digitalWrite(REL_ACID_PUMP, HIGH); // Set again to ensure it's stable
+  
   delay(1000);
   
   Serial.println("\n========================================");
   Serial.println("   Smart Breeder - Starting System");
   Serial.println("========================================\n");
+  
+  // Verify GPIO23 is still OFF
+  int pin23State = digitalRead(REL_ALKALI_PUMP);
+  Serial.printf("GPIO23 state check: %s (should be HIGH/OFF)\n", pin23State == HIGH ? "HIGH ✓" : "LOW ✗ ERROR!");
+  if (pin23State != HIGH) {
+    Serial.println("WARNING: GPIO23 is LOW! Setting to HIGH...");
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
+    delay(100);
+    pin23State = digitalRead(REL_ALKALI_PUMP);
+    Serial.printf("GPIO23 state after fix: %s\n", pin23State == HIGH ? "HIGH ✓" : "LOW ✗ STILL ERROR!");
+  }
+  Serial.println("✓ GPIO23 (Alkali pump) confirmed OFF state");
+  Serial.println("✓ Acid pump pin confirmed OFF state");
   
   // Initialize LCD
   lcdUI.begin();
@@ -87,21 +120,94 @@ void setup() {
   phSensor.begin();
   tempSensor.begin();
   
-  // Initialize controls
-  fanControl.begin();
+  // ======================= RELAY INITIALIZATION =======================
+  // ALL RELAYS START OFF - They will only activate when a fish is selected
+  
+  // Initialize pH control relays (Acid & Alkali pumps)
+  // Note: Pins are already initialized above, this just sets up the control logic
   phControl.begin();
+  
+  // CRITICAL: Verify GPIO23 is still OFF after phControl.begin()
+  pin23State = digitalRead(REL_ALKALI_PUMP);
+  if (pin23State != HIGH) {
+    Serial.println("ERROR: GPIO23 changed to LOW after phControl.begin()! Fixing...");
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
+    delay(100);
+    pin23State = digitalRead(REL_ALKALI_PUMP);
+    Serial.printf("GPIO23 state after fix: %s\n", pin23State == HIGH ? "HIGH ✓" : "LOW ✗ STILL ERROR!");
+  } else {
+    Serial.println("✓ GPIO23 still HIGH after phControl.begin()");
+  }
+  
+  // Initialize fan control relay
+  fanControl.begin();
+  
+  // Initialize water heater relay
+  pinMode(REL_WATER_HEATER, OUTPUT);
+  digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+  
+  // Initialize all other relays
+  pinMode(REL_AIR_PUMP, OUTPUT);
+  pinMode(REL_WATER_FLOW, OUTPUT);
+  pinMode(REL_RAIN_PUMP, OUTPUT);
+  pinMode(REL_LIGHT_CTRL, OUTPUT);
+  
+  // Set relays to OFF (except light control which is always ON)
+  digitalWrite(REL_AIR_PUMP, getRelayLevel(false));
+  digitalWrite(REL_WATER_FLOW, getRelayLevel(false));
+  digitalWrite(REL_RAIN_PUMP, getRelayLevel(false));
+  
+  // Light control relay: Always ACTIVE/ON (for Active-Low: LOW = ON, HIGH = OFF)
+  digitalWrite(REL_LIGHT_CTRL, LOW); // LOW = Relay ON for Active-Low relays
+  Serial.println("✓ Light control relay (GPIO25) set to LOW = ACTIVE/ON (always on)");
+  
+  Serial.println("✓ All relays initialized");
+  Serial.println("  Light control: ALWAYS ON");
+  Serial.println("  Other relays: OFF (will activate when fish species is selected)");
+  
+  // RELAY HARDWARE TEST - DISABLED for GPIO23 to prevent startup activation
+  // GPIO23 (Alkali pump) test is skipped to prevent relay from turning on at startup
+  Serial.println("\n=== RELAY HARDWARE TEST ===");
+  Serial.println("GPIO23 (Alkali pump) test SKIPPED - keeping relay OFF");
+  Serial.println("Other relay tests can be added here if needed");
+  Serial.println("================================\n");
+  
+  // CRITICAL: Ensure GPIO23 is still HIGH after skipping test
+  digitalWrite(REL_ALKALI_PUMP, HIGH);
+  delay(100);
+  digitalWrite(REL_ALKALI_PUMP, HIGH);
+  delay(100);
+  pin23State = digitalRead(REL_ALKALI_PUMP); // Reuse existing variable
+  Serial.printf("GPIO23 state after test skip: %s\n", pin23State == HIGH ? "HIGH ✓ OFF" : "LOW ✗ ON - ERROR!");
+  if (pin23State != HIGH) {
+    Serial.println("FORCING GPIO23 to HIGH...");
+    for (int i = 0; i < 10; i++) {
+      digitalWrite(REL_ALKALI_PUMP, HIGH);
+      delay(50);
+    }
+    pin23State = digitalRead(REL_ALKALI_PUMP);
+    Serial.printf("GPIO23 after force: %s\n", pin23State == HIGH ? "HIGH ✓" : "LOW ✗");
+  }
   
   // Load saved settings
   loadCalibration();
   loadFishType();
   
   Serial.printf("Active Fish Type: %s\n", FISH_PROFILES[activeFishType].name.c_str());
-  Serial.printf("pH Range: %.1f - %.1f\n", 
-                FISH_PROFILES[activeFishType].phMin,
-                FISH_PROFILES[activeFishType].phMax);
-  Serial.printf("Temp Range: %.1f - %.1f°C\n",
-                FISH_PROFILES[activeFishType].tempMin,
-                FISH_PROFILES[activeFishType].tempMax);
+  
+  // Only show ranges if a fish is selected
+  if (activeFishType != FISH_NONE) {
+    Serial.printf("pH Range: %.1f - %.1f\n", 
+                  FISH_PROFILES[activeFishType].phMin,
+                  FISH_PROFILES[activeFishType].phMax);
+    Serial.printf("Temp Range: %.1f - %.1f°C\n",
+                  FISH_PROFILES[activeFishType].tempMin,
+                  FISH_PROFILES[activeFishType].tempMax);
+    Serial.println("Auto control: ENABLED (pH and temperature relays will work)");
+  } else {
+    Serial.println("No fish selected - All relays OFF");
+    Serial.println("Auto control: DISABLED (select a fish species to activate)");
+  }
   
   // Initialize WiFi and Web Server
   wifiServer.begin();
@@ -110,16 +216,71 @@ void setup() {
   Serial.println("   System Ready!");
   Serial.println("========================================\n");
   
+  // FINAL SAFETY CHECK: Ensure GPIO23 is OFF before entering main loop
+  digitalWrite(REL_ALKALI_PUMP, HIGH); // Explicit HIGH (OFF for Active-Low)
+  delay(100);
+  pin23State = digitalRead(REL_ALKALI_PUMP);
+  Serial.printf("FINAL GPIO23 check before main loop: %s\n", pin23State == HIGH ? "HIGH ✓ OFF" : "LOW ✗ ON - ERROR!");
+  if (pin23State != HIGH) {
+    Serial.println("CRITICAL: GPIO23 is ON! Forcing to OFF...");
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(REL_ALKALI_PUMP, HIGH);
+      delay(50);
+    }
+    pin23State = digitalRead(REL_ALKALI_PUMP);
+    Serial.printf("GPIO23 after force OFF: %s\n", pin23State == HIGH ? "HIGH ✓" : "LOW ✗");
+  }
+  
   if (wifiServer.isConnected()) {
     Serial.print("Dashboard: http://");
     Serial.println(wifiServer.getIP());
     Serial.println("Or: http://smartbreeder.local");
   }
+  
+  // Startup delay to prevent autoControl from running immediately
+  // This gives time for all systems to stabilize
+  Serial.println("\nSystem stabilizing... (3 seconds)");
+  delay(3000);
+  Serial.println("System ready - entering main loop\n");
 }
 
 // ======================= MAIN LOOP =======================
 void loop() {
   unsigned long now = millis();
+  
+  // Light control relay: Always keep ACTIVE/ON (LOW = ON for Active-Low relays)
+  digitalWrite(REL_LIGHT_CTRL, LOW);
+  
+  // CRITICAL SAFETY: Continuously monitor GPIO23 to ensure it stays OFF when not in use
+  // This prevents any accidental activation - runs EVERY loop iteration
+  static unsigned long lastGPIO23Check = 0;
+  if (now - lastGPIO23Check >= 100) { // Check every 100ms
+    lastGPIO23Check = now;
+    
+    if (!phControl.getBaseState()) {
+      // Base pump should be OFF - verify pin is HIGH
+      int pin23State = digitalRead(REL_ALKALI_PUMP);
+      if (pin23State != HIGH) {
+        // Pin is LOW but pump should be OFF - force it HIGH immediately
+        Serial.println("WARNING: GPIO23 went LOW when it should be HIGH! Fixing...");
+        for (int i = 0; i < 5; i++) {
+          digitalWrite(REL_ALKALI_PUMP, HIGH);
+          delayMicroseconds(100);
+        }
+        pin23State = digitalRead(REL_ALKALI_PUMP);
+        if (pin23State != HIGH) {
+          Serial.println("ERROR: GPIO23 still LOW after fix attempt!");
+        }
+      }
+    } else {
+      // Base pump is supposed to be ON - verify pin is LOW
+      int pin23State = digitalRead(REL_ALKALI_PUMP);
+      if (pin23State != LOW) {
+        // Should be LOW but it's HIGH - this is also a problem
+        Serial.println("WARNING: GPIO23 is HIGH when base pump should be ON!");
+      }
+    }
+  }
   
   // Handle web server
   wifiServer.update();

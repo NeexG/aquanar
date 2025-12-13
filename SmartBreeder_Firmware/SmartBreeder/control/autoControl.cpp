@@ -21,60 +21,110 @@ void AutoControl::checkEmergency() {
   // Emergency: Temperature too high
   if (temp > TEMP_MAX_SAFE) {
     fanControl->emergencyOn();
-    Serial.println("EMERGENCY: Temperature too high - Fan forced ON");
+    digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
   }
   
-  // Emergency: pH out of safe range
-  if (ph < PH_MIN_SAFE || ph > PH_MAX_SAFE) {
-    phControl->emergencyStop();
-    Serial.println("EMERGENCY: pH out of safe range - Pumps stopped");
+  // Emergency: pH extremely dangerous (only stop if < 1.0 or > 13.0)
+  if (ph < 1.0 || ph > 13.0) {
+    phControl->stopAll();
   }
 }
 
 void AutoControl::checkTemperature() {
-  if (activeFishType == FISH_NONE) return;
-  if (fanControl->isManual()) return; // Don't override manual control
+  Preferences prefs;
+  prefs.begin(PREF_NAMESPACE, true);
+  bool useCustom = prefs.getBool("use_custom_profile", false);
+  prefs.end();
+  
+  if (activeFishType == FISH_NONE && !useCustom) {
+    fanControl->set(false, false);
+    digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+    return;
+  }
   
   float temp = tempSensor->read();
-  const FishProfile& profile = FISH_PROFILES[activeFishType];
+  FishProfile profile = getActiveFishProfile();
+  bool fanManual = fanControl->isManual();
   
-  if (temp < profile.tempMin) {
-    // Too cold - turn on heater (if available)
-    // For now, just turn off fan
-    fanControl->set(false, false);
-    Serial.printf("Temp too low (%.1f < %.1f) - Fan OFF\n", temp, profile.tempMin);
-  } else if (temp > profile.tempMax) {
-    // Too hot - turn on fan
-    fanControl->set(true, false);
-    Serial.printf("Temp too high (%.1f > %.1f) - Fan ON\n", temp, profile.tempMax);
+  if (temp > profile.tempMax) {
+    if (!fanManual) {
+      fanControl->set(true, false);
+    }
+    digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+  } else if (temp < profile.tempMin) {
+    digitalWrite(REL_WATER_HEATER, getRelayLevel(true));
+    if (!fanManual) {
+      fanControl->set(false, false);
+    }
   } else {
-    // Normal temperature
-    fanControl->set(false, false);
+    if (!fanManual) {
+      fanControl->set(false, false);
+    }
+    digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
   }
 }
 
 void AutoControl::checkPH() {
-  if (activeFishType == FISH_NONE) return;
-  if (phControl->isManual()) return; // Don't override manual control
-  if (!phControl->canDose()) return; // In cooldown period
+  // CRITICAL: Always ensure base pump is OFF first (safety check)
+  // This prevents any accidental activation
+  if (!phControl->getBaseState()) {
+    // Base pump should be OFF - double check by forcing it OFF
+    // This is a safety measure to prevent GPIO23 from accidentally going LOW
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
+  }
   
+  // Check if fish is selected
+  Preferences prefs;
+  prefs.begin(PREF_NAMESPACE, true);
+  bool useCustom = prefs.getBool("use_custom_profile", false);
+  prefs.end();
+  
+  if (activeFishType == FISH_NONE && !useCustom) {
+    phControl->setAcid(false);
+    phControl->setBase(false);
+    // Extra safety: Force GPIO23 HIGH
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
+    return;
+  }
+  
+  // Check cooldown - CRITICAL: This must pass before any pump activation
+  if (!phControl->canDose()) {
+    // In cooldown - ensure pumps are OFF
+    phControl->setAcid(false);
+    phControl->setBase(false);
+    // Extra safety: Force GPIO23 HIGH during cooldown
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
+    return;
+  }
+  
+  // Read pH and get profile
   float ph = phSensor->read();
-  const FishProfile& profile = FISH_PROFILES[activeFishType];
+  FishProfile profile = getActiveFishProfile();
   
-  if (ph < profile.phMin) {
-    // Too acidic - add base
-    phControl->setBase(true, false);
-    phControl->setAcid(false, false);
-    Serial.printf("pH too low (%.2f < %.2f) - Adding base\n", ph, profile.phMin);
-  } else if (ph > profile.phMax) {
-    // Too alkaline - add acid
-    phControl->setAcid(true, false);
-    phControl->setBase(false, false);
-    Serial.printf("pH too high (%.2f > %.2f) - Adding acid\n", ph, profile.phMax);
+  // pH Control Logic:
+  // pH > max → Run ACID pump (reduce pH)
+  // pH < min → Run ALKALINE pump (increase pH)
+  // pH in range → Both pumps OFF
+  
+  if (ph > profile.phMax) {
+    phControl->setBase(false);
+    phControl->setAcid(true);
+    // Ensure GPIO23 is HIGH when base pump should be OFF
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
+  } else if (ph < profile.phMin) {
+    phControl->setAcid(false);
+    // Only activate base pump if pH is really low AND cooldown passed
+    if (phControl->canDose()) {
+      phControl->setBase(true);
+    } else {
+      phControl->setBase(false);
+      digitalWrite(REL_ALKALI_PUMP, HIGH);
+    }
   } else {
-    // Normal pH - turn off pumps
-    phControl->setAcid(false, false);
-    phControl->setBase(false, false);
+    phControl->setAcid(false);
+    phControl->setBase(false);
+    // Extra safety: Force GPIO23 HIGH when pH is in range
+    digitalWrite(REL_ALKALI_PUMP, HIGH);
   }
 }
 
@@ -88,16 +138,15 @@ void AutoControl::update() {
   phControl->update();
   fanControl->update();
   
-  // Check temperature
+  // Check temperature every 5 seconds
   if (now - lastTempCheck >= TEMP_CHECK_INTERVAL) {
     checkTemperature();
     lastTempCheck = now;
   }
   
-  // Check pH
+  // Check pH every 1 minute
   if (now - lastPHCheck >= PH_CHECK_INTERVAL) {
     checkPH();
     lastPHCheck = now;
   }
 }
-

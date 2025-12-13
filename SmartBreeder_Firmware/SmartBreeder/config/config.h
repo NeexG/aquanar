@@ -12,7 +12,7 @@
 
 // Relay pins (Active-Low) - Updated pin mapping
 const uint8_t REL_ACID_PUMP   = 16; // Acid pump relay - G16
-const uint8_t REL_ALKALI_PUMP = 17; // Alkali pump relay - G17
+const uint8_t REL_ALKALI_PUMP = 23; // Alkali pump relay - G23
 const uint8_t REL_COOLER_FAN  = 18; // Cooler fan relay - G18
 const uint8_t REL_WATER_HEATER= 19; // Water heater relay - G19
 const uint8_t REL_AIR_PUMP    = 26; // Air pump relay - G26
@@ -76,6 +76,10 @@ const float TEMP_MAX_SAFE = 40.0; // Emergency fan ON above this
 enum FishType {
   FISH_NONE = 0,
   FISH_GOLD,
+  FISH_BETTA,
+  FISH_GUPPY,
+  FISH_NEON_TETRA,
+  FISH_ANGELFISH,
   FISH_COMET,
   FISH_ROHU
 };
@@ -89,10 +93,14 @@ struct FishProfile {
 };
 
 const FishProfile FISH_PROFILES[] = {
-  {"None", 6.5, 7.5, 20.0, 25.0},
-  {"Gold Fish", 6.8, 7.5, 24.0, 28.0},
-  {"Comet", 6.5, 7.2, 23.0, 27.0},
-  {"Rohu", 6.6, 8.0, 24.0, 32.0}
+  {"None", 6.5, 7.5, 26.0, 30.0},           // Temp: 26-30°C (within 25-32)
+  {"Goldfish", 6.5, 8.0, 27.0, 31.0},       // Temp: 27-31°C (within 25-32)
+  {"Betta Fish", 6.5, 7.5, 26.5, 30.5},      // Temp: 26.5-30.5°C (within 25-32)
+  {"Guppy", 7.0, 8.5, 25.5, 29.5},          // Temp: 25.5-29.5°C (within 25-32)
+  {"Neon Tetra", 5.0, 7.0, 25.0, 29.0},      // Temp: 25-29°C (within 25-32)
+  {"Angelfish", 6.0, 7.5, 28.0, 32.0},       // Temp: 28-32°C (within 25-32)
+  {"Comet", 6.5, 7.2, 26.0, 30.0},          // Temp: 26-30°C (within 25-32)
+  {"Rohu", 6.6, 8.0, 27.5, 31.5}            // Temp: 27.5-31.5°C (within 25-32)
 };
 
 // ======================= GLOBAL STATE =======================
@@ -105,6 +113,7 @@ void loadCalibration();
 void saveCalibration();
 void loadFishType();
 void saveFishType();
+FishProfile getActiveFishProfile(); // Get active fish profile (custom or default)
 
 #endif
 
