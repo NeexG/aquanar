@@ -50,21 +50,42 @@ void AutoControl::checkTemperature() {
   // Get active fish profile to check water flow and rain settings
   FishProfile profile = getActiveFishProfile();
   
-  // Air pump ON when any fish is selected
-  digitalWrite(REL_AIR_PUMP, getRelayLevel(true));
+  // Check for manual overrides
+  Preferences prefs;
+  prefs.begin(PREF_NAMESPACE, true);
+  bool manualAirPump = prefs.getBool("manual_air_pump", false);
+  bool manualWaterFlow = prefs.getBool("manual_water_flow", false);
+  bool manualRainPump = prefs.getBool("manual_rain_pump", false);
+  bool manualWaterHeater = prefs.getBool("manual_water_heater", false);
+  bool manualLightControl = prefs.getBool("manual_light_control", false);
+  prefs.end();
   
-  // Control water flow relay based on fish profile
-  if (profile.waterFlow) {
-    digitalWrite(REL_WATER_FLOW, getRelayLevel(true)); // ON
-  } else {
-    digitalWrite(REL_WATER_FLOW, getRelayLevel(false)); // OFF
+  // Air pump ON when any fish is selected (unless manually overridden)
+  if (!manualAirPump) {
+    digitalWrite(REL_AIR_PUMP, getRelayLevel(true));
   }
   
-  // Control rain relay based on fish profile
-  if (profile.rain) {
-    digitalWrite(REL_RAIN_PUMP, getRelayLevel(true)); // ON
-  } else {
-    digitalWrite(REL_RAIN_PUMP, getRelayLevel(false)); // OFF
+  // Control water flow relay based on fish profile (unless manually overridden)
+  if (!manualWaterFlow) {
+    if (profile.waterFlow) {
+      digitalWrite(REL_WATER_FLOW, getRelayLevel(true)); // ON
+    } else {
+      digitalWrite(REL_WATER_FLOW, getRelayLevel(false)); // OFF
+    }
+  }
+  
+  // Control rain relay based on fish profile (unless manually overridden)
+  if (!manualRainPump) {
+    if (profile.rain) {
+      digitalWrite(REL_RAIN_PUMP, getRelayLevel(true)); // ON
+    } else {
+      digitalWrite(REL_RAIN_PUMP, getRelayLevel(false)); // OFF
+    }
+  }
+  
+  // Light control: Always ON (unless manually overridden)
+  if (!manualLightControl) {
+    digitalWrite(REL_LIGHT_CTRL, LOW); // Always ON for active-low
   }
   
   float temp = tempSensor->read();
@@ -74,9 +95,15 @@ void AutoControl::checkTemperature() {
     if (!fanManual) {
       fanControl->set(true, false);
     }
-    digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+    // Only control water heater if not manually overridden
+    if (!manualWaterHeater) {
+      digitalWrite(REL_WATER_HEATER, getRelayLevel(false));
+    }
   } else if (temp < profile.tempMin) {
-    digitalWrite(REL_WATER_HEATER, getRelayLevel(true));
+    // Only control water heater if not manually overridden
+    if (!manualWaterHeater) {
+      digitalWrite(REL_WATER_HEATER, getRelayLevel(true));
+    }
     if (!fanManual) {
       fanControl->set(false, false);
     }

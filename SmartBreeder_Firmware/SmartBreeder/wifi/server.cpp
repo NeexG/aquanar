@@ -118,9 +118,31 @@ String SmartBreederServer::getStatusJSON() {
   // Core fields that dashboard REQUIRES (exact match)
   json += "\"ph\":" + String(ph, 2) + ",";
   json += "\"temperature\":" + String(temp, 2) + ",";
+  // Send proper JSON booleans (true/false without quotes)
   json += "\"fan\":" + String(fanControl->getState() ? "true" : "false") + ",";
   json += "\"acidPump\":" + String(phControl->getAcidState() ? "true" : "false") + ",";
-  json += "\"basePump\":" + String(phControl->getBaseState() ? "true" : "false");
+  json += "\"basePump\":" + String(phControl->getBaseState() ? "true" : "false") + ",";
+  // Additional relay states - For active-low relays: LOW = ON, HIGH = OFF
+  // Check if pin level matches the ON state (LOW for active-low)
+  bool waterHeaterOn = (digitalRead(REL_WATER_HEATER) == getRelayLevel(true));
+  bool airPumpOn = (digitalRead(REL_AIR_PUMP) == getRelayLevel(true));
+  bool waterFlowOn = (digitalRead(REL_WATER_FLOW) == getRelayLevel(true));
+  bool rainPumpOn = (digitalRead(REL_RAIN_PUMP) == getRelayLevel(true));
+  bool lightControlOn = (digitalRead(REL_LIGHT_CTRL) == getRelayLevel(true));
+  
+  json += ",\"waterHeater\":" + String(waterHeaterOn ? "true" : "false");
+  json += ",\"airPump\":" + String(airPumpOn ? "true" : "false");
+  json += ",\"waterFlow\":" + String(waterFlowOn ? "true" : "false");
+  json += ",\"rainPump\":" + String(rainPumpOn ? "true" : "false");
+  json += ",\"lightControl\":" + String(lightControlOn ? "true" : "false");
+  
+  // Debug: Print relay states to Serial
+  Serial.printf("Relay States - WaterHeater: %s, AirPump: %s, WaterFlow: %s, RainPump: %s, LightControl: %s\n",
+                waterHeaterOn ? "ON" : "OFF",
+                airPumpOn ? "ON" : "OFF",
+                waterFlowOn ? "ON" : "OFF",
+                rainPumpOn ? "ON" : "OFF",
+                lightControlOn ? "ON" : "OFF");
   
   // Optional bonus fields (won't break dashboard if missing)
   json += ",\"fishType\":" + String(activeFishType);
@@ -147,6 +169,13 @@ String SmartBreederServer::getStatusJSON() {
   json += ",\"tempSafe\":" + String(tempSensor->isSafe() ? "true" : "false");
   
   json += "}";
+  
+  // Debug: Print the full JSON being sent
+  Serial.println("=== Full Status JSON ===");
+  Serial.println(json);
+  Serial.println("=== End Status JSON ===");
+  Serial.printf("JSON length: %d bytes\n", json.length());
+  
   return json;
 }
 
@@ -163,59 +192,46 @@ void SmartBreederServer::handleAPIControl() {
     Serial.println("Control command: " + body);
     
     bool fanSet = false, acidSet = false, baseSet = false;
+    bool waterHeaterSet = false, airPumpSet = false, waterFlowSet = false;
+    bool rainPumpSet = false, lightControlSet = false;
     bool fanVal = false, acidVal = false, baseVal = false;
+    bool waterHeaterVal = false, airPumpVal = false, waterFlowVal = false;
+    bool rainPumpVal = false, lightControlVal = false;
     bool hasError = false;
     
     // Parse JSON - handle both true and false values properly
-    // Format: {"fan":true,"acidPump":false,"basePump":false}
+    // Format: {"fan":true,"acidPump":false,"basePump":false,"waterHeater":true,...}
     
-    // Parse fan
-    int fanPos = body.indexOf("\"fan\"");
-    if (fanPos >= 0) {
-      fanSet = true;
-      int truePos = body.indexOf("true", fanPos);
-      int falsePos = body.indexOf("false", fanPos);
-      if (truePos >= 0 && (falsePos < 0 || truePos < falsePos)) {
-        fanVal = true;
-      } else if (falsePos >= 0) {
-        fanVal = false;
-      } else {
-        hasError = true;
-        Serial.println("Error: Invalid fan value");
-      }
-    }
+    // Helper macro to parse boolean value
+    #define PARSE_BOOL(field, setVar, valVar) \
+      do { \
+        int pos = body.indexOf("\"" #field "\""); \
+        if (pos >= 0) { \
+          setVar = true; \
+          int truePos = body.indexOf("true", pos); \
+          int falsePos = body.indexOf("false", pos); \
+          if (truePos >= 0 && (falsePos < 0 || truePos < falsePos)) { \
+            valVar = true; \
+          } else if (falsePos >= 0) { \
+            valVar = false; \
+          } else { \
+            hasError = true; \
+            Serial.println("Error: Invalid " #field " value"); \
+          } \
+        } \
+      } while(0)
     
-    // Parse acidPump
-    int acidPos = body.indexOf("\"acidPump\"");
-    if (acidPos >= 0) {
-      acidSet = true;
-      int truePos = body.indexOf("true", acidPos);
-      int falsePos = body.indexOf("false", acidPos);
-      if (truePos >= 0 && (falsePos < 0 || truePos < falsePos)) {
-        acidVal = true;
-      } else if (falsePos >= 0) {
-        acidVal = false;
-      } else {
-        hasError = true;
-        Serial.println("Error: Invalid acidPump value");
-      }
-    }
+    // Parse all relay controls
+    PARSE_BOOL(fan, fanSet, fanVal);
+    PARSE_BOOL(acidPump, acidSet, acidVal);
+    PARSE_BOOL(basePump, baseSet, baseVal);
+    PARSE_BOOL(waterHeater, waterHeaterSet, waterHeaterVal);
+    PARSE_BOOL(airPump, airPumpSet, airPumpVal);
+    PARSE_BOOL(waterFlow, waterFlowSet, waterFlowVal);
+    PARSE_BOOL(rainPump, rainPumpSet, rainPumpVal);
+    PARSE_BOOL(lightControl, lightControlSet, lightControlVal);
     
-    // Parse basePump
-    int basePos = body.indexOf("\"basePump\"");
-    if (basePos >= 0) {
-      baseSet = true;
-      int truePos = body.indexOf("true", basePos);
-      int falsePos = body.indexOf("false", basePos);
-      if (truePos >= 0 && (falsePos < 0 || truePos < falsePos)) {
-        baseVal = true;
-      } else if (falsePos >= 0) {
-        baseVal = false;
-      } else {
-        hasError = true;
-        Serial.println("Error: Invalid basePump value");
-      }
-    }
+    #undef PARSE_BOOL
     
     if (hasError) {
       server->send(400, "application/json", "{\"success\":false,\"error\":\"Invalid JSON format\"}");
@@ -234,6 +250,66 @@ void SmartBreederServer::handleAPIControl() {
     if (baseSet) {
       phControl->setBase(baseVal);
       Serial.printf("Base pump %s\n", baseVal ? "ON" : "OFF");
+    }
+    if (waterHeaterSet) {
+      digitalWrite(REL_WATER_HEATER, getRelayLevel(waterHeaterVal));
+      // Store manual override flag
+      Preferences prefs;
+      prefs.begin(PREF_NAMESPACE, false);
+      prefs.putBool("manual_water_heater", true);
+      prefs.end();
+      Serial.printf("Water heater MANUALLY set to %s (GPIO%d = %s)\n", 
+                    waterHeaterVal ? "ON" : "OFF", 
+                    REL_WATER_HEATER,
+                    digitalRead(REL_WATER_HEATER) == LOW ? "LOW" : "HIGH");
+    }
+    if (airPumpSet) {
+      digitalWrite(REL_AIR_PUMP, getRelayLevel(airPumpVal));
+      // Store manual override flag
+      Preferences prefs;
+      prefs.begin(PREF_NAMESPACE, false);
+      prefs.putBool("manual_air_pump", true);
+      prefs.end();
+      Serial.printf("Air pump MANUALLY set to %s (GPIO%d = %s)\n", 
+                    airPumpVal ? "ON" : "OFF", 
+                    REL_AIR_PUMP,
+                    digitalRead(REL_AIR_PUMP) == LOW ? "LOW" : "HIGH");
+    }
+    if (waterFlowSet) {
+      digitalWrite(REL_WATER_FLOW, getRelayLevel(waterFlowVal));
+      // Store manual override flag
+      Preferences prefs;
+      prefs.begin(PREF_NAMESPACE, false);
+      prefs.putBool("manual_water_flow", true);
+      prefs.end();
+      Serial.printf("Water flow MANUALLY set to %s (GPIO%d = %s)\n", 
+                    waterFlowVal ? "ON" : "OFF", 
+                    REL_WATER_FLOW,
+                    digitalRead(REL_WATER_FLOW) == LOW ? "LOW" : "HIGH");
+    }
+    if (rainPumpSet) {
+      digitalWrite(REL_RAIN_PUMP, getRelayLevel(rainPumpVal));
+      // Store manual override flag
+      Preferences prefs;
+      prefs.begin(PREF_NAMESPACE, false);
+      prefs.putBool("manual_rain_pump", true);
+      prefs.end();
+      Serial.printf("Rain pump MANUALLY set to %s (GPIO%d = %s)\n", 
+                    rainPumpVal ? "ON" : "OFF", 
+                    REL_RAIN_PUMP,
+                    digitalRead(REL_RAIN_PUMP) == LOW ? "LOW" : "HIGH");
+    }
+    if (lightControlSet) {
+      digitalWrite(REL_LIGHT_CTRL, getRelayLevel(lightControlVal));
+      // Store manual override flag
+      Preferences prefs;
+      prefs.begin(PREF_NAMESPACE, false);
+      prefs.putBool("manual_light_control", true);
+      prefs.end();
+      Serial.printf("Light control MANUALLY set to %s (GPIO%d = %s)\n", 
+                    lightControlVal ? "ON" : "OFF", 
+                    REL_LIGHT_CTRL,
+                    digitalRead(REL_LIGHT_CTRL) == LOW ? "LOW" : "HIGH");
     }
     
     // Return success response (dashboard expects this format)
